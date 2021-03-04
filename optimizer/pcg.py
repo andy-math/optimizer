@@ -125,6 +125,9 @@ def _pcg_output_check(output: Tuple[ndarray, float, bool, bool, int]) -> None:
     assertNoInfNaN_float(qpval)
 
 
+N = dyn_typing.SizeVar()
+
+
 @dyn_typing.dyn_check_3(
     input=(
         dyn_typing.NDArray(numpy.float64, (N,)),
