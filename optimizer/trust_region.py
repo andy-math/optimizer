@@ -3,7 +3,7 @@ from typing import Callable, Optional
 
 import numpy
 from mypy_extensions import NamedArg
-from numerical import findiff
+from numerical import findiff, linneq
 from numerical.typedefs import ndarray
 
 from optimizer import pcg
@@ -83,42 +83,50 @@ def trust_region(
             )
         )
 
-        if isposdef is not None and exit_flag is not None:
+        # 成功收敛准则
+        if isposdef is not None and exit_flag is not None:  # PCG正定收敛
             if isposdef and exit_flag == pcg.PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE:
-                if grad_infnorm < opts.tol_grad:
+                if grad_infnorm < opts.tol_grad:  # 梯度足够小
                     return Trust_Region_Result(x, iter, success=True)
-                if step_size < opts.tol_step:
+                if step_size < opts.tol_step:  # 步长足够小
                     return Trust_Region_Result(x, iter, success=True)
 
-        if iter:
-            if step_size < opts.tol_step:
-                return Trust_Region_Result(x, iter, success=False)
-            if iter > opts.max_iter:
-                return Trust_Region_Result(x, iter, success=False)
+        # 失败收敛准则
+        if iter and step_size < opts.tol_step:  # 步长太小而不满足PCG正定收敛
+            return Trust_Region_Result(x, iter, success=False)
+        if iter > opts.max_iter:  # 迭代次数超过要求
+            return Trust_Region_Result(x, iter, success=False)
 
+        # PCG
         step: ndarray
         qpval: float
-        pinfo, step, pcg_iter, exit_flag = pcg.pcg(grad, H, delta)
+        step, qpval, isposdef, iter, exit_flag = pcg.pcg(grad, H, delta)
         step_size = numpy.linalg.norm(step)  # type: ignore
         iter += 1
 
-        if pinfo is None:
+        # 试探更新自变量
+        new_x = x + step
+
+        # 违反约束时丢弃isposdef和exit_flag以拒绝判定为收敛
+        new_x.shape = (new_x.shape[0], 1)
+        if not linneq.check(new_x, constr_A, constr_b, constr_lb, constr_ub):
+            isposdef, exit_flag = None, None
             delta = step_size / 4
             continue
+        new_x.shape = (new_x.shape[0],)
 
-        qpval, isposdef = pinfo
-
-        new_x = x + step
+        # 对通过约束检查的自变量进行函数求值
         new_fval = objective(new_x)
+
+        # 根据下降率确定信赖域缩放
         reduce: float = new_fval - fval
-
         ratio: float = 1 if reduce <= qpval else (0 if reduce >= 0 else reduce / qpval)
-
         if ratio >= 0.75 and step_size >= 0.9 * delta:
             delta *= 2
         elif ratio <= 0.25:
             delta = step_size / 4
 
+        # 对符合下降要求的候选点进行更新
         if new_fval < fval:
             x, fval, grad = new_x, new_fval, gradient(new_x)
             grad_infnorm = numpy.max(numpy.abs(grad))

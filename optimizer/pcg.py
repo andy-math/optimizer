@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import enum
-from typing import Optional, Tuple
+from typing import Tuple
 
 import numpy
 from numerical.typedefs import ndarray
@@ -12,7 +12,6 @@ from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
 class PCG_EXIT_FLAG(enum.Enum):
     RESIDUAL_CONVERGENCE = enum.auto()
     NEGATIVE_CURVATURE = enum.auto()
-    VIOLATE_CONSTRAINTS = enum.auto()
     OUT_OF_TRUST_REGION = enum.auto()
 
 
@@ -82,10 +81,6 @@ def _impl(
         alpha: float = inner1 / denom
         pnew: ndarray = p + alpha * direct
 
-        # TODO: 目标点超出约束
-        if False:
-            return (p, direct, iter, PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS)
-
         # 目标点超出信赖域
         if numpy.linalg.norm(pnew) > delta:  # type: ignore
             return (p, direct, iter, PCG_EXIT_FLAG.OUT_OF_TRUST_REGION)
@@ -105,14 +100,10 @@ def _impl(
     assert False
 
 
-def _pcg_output_check(
-    output: Tuple[Optional[Tuple[float, bool]], ndarray, int, PCG_EXIT_FLAG]
-) -> None:
-    pinfo, p, _, exit_code = output
+def _pcg_output_check(output: Tuple[ndarray, float, bool, int, PCG_EXIT_FLAG]) -> None:
+    p, qpval, _, _, _ = output
     assertNoInfNaN(p)
-    if pinfo is not None:
-        qpval, _ = pinfo
-        assertNoInfNaN_float(qpval)
+    assertNoInfNaN_float(qpval)
 
 
 N = dyn_typing.SizeVar()
@@ -126,15 +117,9 @@ N = dyn_typing.SizeVar()
     ),
     output=dyn_typing.Tuple(
         (
-            dyn_typing.Optional(
-                dyn_typing.Tuple(
-                    (
-                        dyn_typing.Float(),
-                        dyn_typing.Bool(),
-                    )
-                )
-            ),
             dyn_typing.NDArray(numpy.float64, (N,)),
+            dyn_typing.Float(),
+            dyn_typing.Bool(),
             dyn_typing.Int(),
             dyn_typing.Class(PCG_EXIT_FLAG),
         )
@@ -143,7 +128,7 @@ N = dyn_typing.SizeVar()
 @bind_checker.bind_checker_3(input=_input_check, output=_pcg_output_check)
 def pcg(
     g: ndarray, H: ndarray, delta: float
-) -> Tuple[Optional[Tuple[float, bool]], ndarray, int, PCG_EXIT_FLAG]:
+) -> Tuple[ndarray, float, bool, int, PCG_EXIT_FLAG]:
     # 主循环
     p: ndarray
     direct: ndarray
@@ -154,17 +139,12 @@ def pcg(
     # 输出变量
     posdef: bool
 
-    # 越界情形
-    if exit_code == PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS:
-        return None, p, iter, exit_code
-
     # 残差收敛情形
     if exit_code == PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE:
         posdef = True
 
     # 负曲率情形
     # 未迭代则以一阶逼近使用grad
-    # grad越界则退化为zeros TODO
     elif exit_code == PCG_EXIT_FLAG.NEGATIVE_CURVATURE:
         posdef = False
         if not iter:
@@ -173,11 +153,9 @@ def pcg(
             if norm_g > 0:
                 p = p / norm_g
             p = delta * p
-            # TODO
 
     # 超出信赖域情形
     # 延搜索方向走到信赖域边界
-    # 约束判断先于信赖域判断，因此信赖域边界一定在约束之内，不会退化成越界
     elif exit_code == PCG_EXIT_FLAG.OUT_OF_TRUST_REGION:
         """
         pnew == p + alpha * d
@@ -194,4 +172,4 @@ def pcg(
     else:
         assert False
     qpval: float = float(g.T @ p + (0.5 * p).T @ H @ p)
-    return (qpval, posdef), p, iter, exit_code
+    return p, qpval, posdef, iter, exit_code
