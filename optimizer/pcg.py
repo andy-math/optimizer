@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import enum
-from typing import Tuple
+from typing import Optional, Tuple
 
 import numpy
 from numerical.typedefs import ndarray
@@ -14,7 +14,6 @@ class PCG_EXIT_FLAG(enum.Enum):
     NEGATIVE_CURVATURE = enum.auto()
     VIOLATE_CONSTRAINTS = enum.auto()
     OUT_OF_TRUST_REGION = enum.auto()
-    NOT_CONVERGENCE = enum.auto()
 
 
 def _input_check(input: Tuple[ndarray, ndarray, float]) -> None:
@@ -65,52 +64,39 @@ def _impl(
     inner1: float = float(r.T @ z)
 
     for iter in range(n + 1):
+        # 残差收敛性检查
         if numpy.max(numpy.abs(z)) < numpy.sqrt(_eps):
-            return (
-                p,
-                direct,
-                iter,
-                PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE,
-            )
+            return (p, direct, iter, PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE)
+
+        # 残差始终不收敛则是hessian矩阵病态，适用于非正定-负曲率情形
         if iter == n:
-            return (
-                p,
-                direct,
-                iter,
-                PCG_EXIT_FLAG.NOT_CONVERGENCE,
-            )
+            return (p, direct, iter, PCG_EXIT_FLAG.NEGATIVE_CURVATURE)
+
+        # 负曲率检查
         ww: ndarray = H @ direct
         denom: float = float(direct.T @ ww)
         if denom <= 0:
-            return (
-                p,
-                direct,
-                iter,
-                PCG_EXIT_FLAG.NEGATIVE_CURVATURE,
-            )
-        # 更新坐标点
+            return (p, direct, iter, PCG_EXIT_FLAG.NEGATIVE_CURVATURE)
+
+        # 试探坐标点
         alpha: float = inner1 / denom
         pnew: ndarray = p + alpha * direct
-        # 线性约束 TODO
+
+        # TODO: 目标点超出约束
         if False:
-            return (
-                p,
-                direct,
-                iter,
-                PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS,
-            )
-        # 信赖域
+            return (p, direct, iter, PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS)
+
+        # 目标点超出信赖域
         if numpy.linalg.norm(pnew) > delta:  # type: ignore
-            return (
-                p,
-                direct,
-                iter,
-                PCG_EXIT_FLAG.OUT_OF_TRUST_REGION,
-            )
+            return (p, direct, iter, PCG_EXIT_FLAG.OUT_OF_TRUST_REGION)
+
+        # 更新坐标点
         p = pnew
+
         # 更新残差
         r = r - alpha * ww
         z = r / R2
+
         # 更新搜索方向
         inner2: float = inner1
         inner1 = float(r.T @ z)
@@ -119,10 +105,14 @@ def _impl(
     assert False
 
 
-def _pcg_output_check(output: Tuple[ndarray, float, bool, bool, int]) -> None:
-    p, qpval, _, _, _ = output
+def _pcg_output_check(
+    output: Tuple[Optional[Tuple[float, bool]], ndarray, int, PCG_EXIT_FLAG]
+) -> None:
+    pinfo, p, _, exit_code = output
     assertNoInfNaN(p)
-    assertNoInfNaN_float(qpval)
+    if pinfo is not None:
+        qpval, _ = pinfo
+        assertNoInfNaN_float(qpval)
 
 
 N = dyn_typing.SizeVar()
@@ -136,53 +126,72 @@ N = dyn_typing.SizeVar()
     ),
     output=dyn_typing.Tuple(
         (
+            dyn_typing.Optional(
+                dyn_typing.Tuple(
+                    (
+                        dyn_typing.Float(),
+                        dyn_typing.Bool(),
+                    )
+                )
+            ),
             dyn_typing.NDArray(numpy.float64, (N,)),
-            dyn_typing.Float(),
-            dyn_typing.Bool(),
-            dyn_typing.Bool(),
             dyn_typing.Int(),
+            dyn_typing.Class(PCG_EXIT_FLAG),
         )
     ),
 )
 @bind_checker.bind_checker_3(input=_input_check, output=_pcg_output_check)
-def pcg(g: ndarray, H: ndarray, delta: float) -> Tuple[ndarray, float, bool, bool, int]:
+def pcg(
+    g: ndarray, H: ndarray, delta: float
+) -> Tuple[Optional[Tuple[float, bool]], ndarray, int, PCG_EXIT_FLAG]:
+    # 主循环
     p: ndarray
     direct: ndarray
     iter: int
     exit_code: PCG_EXIT_FLAG
     p, direct, iter, exit_code = _impl(g, H, delta)
-    posdef: bool
-    wellDefined: bool
-    if exit_code == PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE:
-        posdef, wellDefined = True, True
 
+    # 输出变量
+    posdef: bool
+
+    # 越界情形
+    if exit_code == PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS:
+        return None, p, iter, exit_code
+
+    # 残差收敛情形
+    if exit_code == PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE:
+        posdef = True
+
+    # 负曲率情形
+    # 未迭代则以一阶逼近使用grad
+    # grad越界则退化为zeros TODO
     elif exit_code == PCG_EXIT_FLAG.NEGATIVE_CURVATURE:
-        posdef, wellDefined = False, True
-        if not iter:  # CG迭代失败时按照一阶逼近取梯度
+        posdef = False
+        if not iter:
             norm_g: float = float(numpy.linalg.norm(g))  # type: ignore
             p = -g
             if norm_g > 0:
                 p = p / norm_g
             p = delta * p
+            # TODO
 
-    elif exit_code == PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS:
-        posdef, wellDefined = True, False
-
+    # 超出信赖域情形
+    # 延搜索方向走到信赖域边界
+    # 约束判断先于信赖域判断，因此信赖域边界一定在约束之内，不会退化成越界
     elif exit_code == PCG_EXIT_FLAG.OUT_OF_TRUST_REGION:
-        posdef, wellDefined = True, True
         """
         pnew == p + alpha * d
         p.T @ p + alpha * alpha * d.T @ d == delta * delta
             (where p.T @ d === 0, due to orthogonality)
         alpha = sqrt( (delta * delta - p.T @ p)/(d.T @ d) )
         """
+        posdef = True
         alpha: float = float(
             numpy.sqrt((delta * delta - p.T @ p) / (direct.T @ direct))
         )
         p = p + alpha * direct
-    elif exit_code == PCG_EXIT_FLAG.NOT_CONVERGENCE:
-        posdef, wellDefined = True, False
+
     else:
         assert False
     qpval: float = float(g.T @ p + (0.5 * p).T @ H @ p)
-    return p, qpval, posdef, wellDefined, iter
+    return (qpval, posdef), p, iter, exit_code
