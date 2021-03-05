@@ -65,16 +65,16 @@ def _impl(
     for iter in range(n + 1):
         # 残差收敛性检查
         if numpy.max(numpy.abs(z)) < numpy.sqrt(_eps):
+            return (p, direct, iter, PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE)
+
+        # 残差始终不收敛则是hessian矩阵病态，适用于非正定-负曲率情形
+        if iter == n:
             return (
                 p,
                 direct,
                 iter,
-                PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE,
+                PCG_EXIT_FLAG.NEGATIVE_CURVATURE,
             )  # pragma: no cover
-
-        # 残差始终不收敛则是hessian矩阵病态，适用于非正定-负曲率情形
-        if iter == n:
-            return (p, direct, iter, PCG_EXIT_FLAG.NEGATIVE_CURVATURE)
 
         # 负曲率检查
         ww: ndarray = H @ direct
@@ -175,6 +175,6 @@ def pcg(
         p = p + alpha * direct
 
     else:
-        assert False
+        assert False  # pragma: no cover
     qpval: float = float(g.T @ p + (0.5 * p).T @ H @ p)
     return p, qpval, posdef, iter, exit_code
