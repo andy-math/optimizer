@@ -173,7 +173,7 @@ def trust_region(
         # PCG
         step: ndarray
         qpval: float
-        step, qpval, isposdef, iter, exit_flag = pcg.pcg(grad, H, delta)
+        step, qpval, isposdef, pcg_iter, exit_flag = pcg.pcg(grad, H, delta)
         step_size = numpy.linalg.norm(step)  # type: ignore
         iter += 1
 
