@@ -1,12 +1,30 @@
 # -*- coding: utf-8 -*-
-from typing import Callable, Optional
+from typing import Callable, Optional, Tuple
 
 import numpy
 from mypy_extensions import NamedArg
-from numerical import findiff, linneq
+from numerical import difference, findiff, linneq
 from numerical.typedefs import ndarray
+from overloads import bind_checker, dyn_typing
+from overloads.shortcuts import assertNoInfNaN
 
 from optimizer import pcg
+
+
+class Grad_Check_Failed(BaseException):
+    checker: Optional[Callable[[ndarray, ndarray], float]]
+    analytic: ndarray
+    findiff_: ndarray
+
+    def __init__(
+        self,
+        checker: Callable[[ndarray, ndarray], float],
+        analytic: ndarray,
+        findiff_: ndarray,
+    ) -> None:
+        self.checker = checker
+        self.analytic = analytic
+        self.findiff_ = findiff_
 
 
 class Trust_Region_Options:
@@ -14,6 +32,8 @@ class Trust_Region_Options:
     tol_grad: float = 1.0e-6
     init_delta: float = 1.0
     max_iter: int
+    check_rel: float = 10.0e-6
+    check_abs: Optional[float] = None
     format: Optional[
         Callable[
             [
@@ -43,17 +63,70 @@ class Trust_Region_Result:
         self.success = success
 
 
+def _input_check(
+    input: Tuple[
+        Callable[[ndarray], float],
+        Callable[[ndarray], ndarray],
+        ndarray,
+        ndarray,
+        ndarray,
+        ndarray,
+        ndarray,
+        Trust_Region_Options,
+    ]
+) -> None:
+    _, _, x, A, b, lb, ub, _ = input
+    linneq.constraint_check(A, b, lb, ub, theta=x)
+
+
+def _output_check(output: Trust_Region_Result) -> None:
+    assertNoInfNaN(output.x)
+
+
+N = dyn_typing.SizeVar()
+nConstraint = dyn_typing.SizeVar()
+
+
+@dyn_typing.dyn_check_8(
+    input=(
+        dyn_typing.Callable(),
+        dyn_typing.Callable(),
+        dyn_typing.NDArray(numpy.float64, (N,)),
+        dyn_typing.NDArray(numpy.float64, (nConstraint, N)),
+        dyn_typing.NDArray(numpy.float64, (nConstraint,)),
+        dyn_typing.NDArray(numpy.float64, (N,)),  # force line wrap
+        dyn_typing.NDArray(numpy.float64, (N,)),
+        dyn_typing.Class(Trust_Region_Options),
+    ),
+    output=dyn_typing.Class(Trust_Region_Result),
+)
+@bind_checker.bind_checker_8(input=_input_check, output=_output_check)
 def trust_region(
     objective: Callable[[ndarray], float],
     gradient: Callable[[ndarray], ndarray],
     x: ndarray,
+    constr_A: ndarray,
+    constr_b: ndarray,
+    constr_lb: ndarray,
+    constr_ub: ndarray,
     opts: Trust_Region_Options,
 ) -> Trust_Region_Result:
-    n = x.shape[0]
-    constr_A = numpy.zeros((0, n))
-    constr_b = numpy.zeros((0,))
-    constr_lb = numpy.full((n,), -numpy.inf)
-    constr_ub = numpy.full((n,), numpy.inf)
+    def objective_ndarray(x: ndarray) -> ndarray:
+        return numpy.array([objective(x)])
+
+    def make_grad(x: ndarray) -> ndarray:
+        analytic = gradient(x)
+        findiff_ = findiff.findiff(
+            objective_ndarray, x, constr_A, constr_b, constr_lb, constr_ub
+        )
+        assert len(findiff_.shape) == 2 and findiff_.shape[0] == 1
+        findiff_.shape = (findiff_.shape[1],)
+        if difference.relative(analytic, findiff_) > opts.check_rel:
+            raise Grad_Check_Failed(difference.relative, analytic, findiff_)
+        if opts.check_abs is not None:
+            if difference.absolute(analytic, findiff_) > opts.check_abs:
+                raise Grad_Check_Failed(difference.absolute, analytic, findiff_)
+        return analytic
 
     assert opts.format is not None
 
@@ -66,7 +139,7 @@ def trust_region(
     exit_flag: Optional[pcg.PCG_EXIT_FLAG] = None
 
     fval: float = objective(x)
-    grad: ndarray = gradient(x)
+    grad: ndarray = make_grad(x)
     grad_infnorm: float = numpy.max(numpy.abs(grad))
     H = findiff.findiff(gradient, x, constr_A, constr_b, constr_lb, constr_ub)
 
@@ -128,6 +201,6 @@ def trust_region(
 
         # 对符合下降要求的候选点进行更新
         if new_fval < fval:
-            x, fval, grad = new_x, new_fval, gradient(new_x)
+            x, fval, grad = new_x, new_fval, make_grad(new_x)
             grad_infnorm = numpy.max(numpy.abs(grad))
             H = findiff.findiff(gradient, x, constr_A, constr_b, constr_lb, constr_ub)
