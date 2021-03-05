@@ -1,0 +1,45 @@
+name: Test
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: macOS-10.14
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.8'
+        architecture: 'x64'
+    - name: Cache pip
+      uses: actions/cache@v2
+      with:
+        path: ~/Library/Caches/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          ${{ runner.os }}-
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    - name: Test with pytest
+      run: |
+        git clone https://github.com/Andy-math/overloads.git
+        mv overloads overloads_git
+        mv overloads_git/overloads overloads
+        rm -rf overloads_git
+        git clone https://github.com/Andy-math/numerical.git
+        mv numerical numerical_git
+        mv numerical_git/numerical numerical
+        rm -rf numerical_git
+        export PYTHONPATH=.
+        coverage run -m pytest --junitxml=JUnit.xml
+        coverage combine
+        coverage xml
+    - uses: codecov/codecov-action@v1
+      with:
+        fail_ci_if_error: true # optional (default = false)
