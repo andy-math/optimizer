@@ -65,7 +65,12 @@ def _impl(
     for iter in range(n + 1):
         # 残差收敛性检查
         if numpy.max(numpy.abs(z)) < numpy.sqrt(_eps):
-            return (p, direct, iter, PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE)
+            return (
+                p,
+                direct,
+                iter,
+                PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE,
+            )  # pragma: no cover
 
         # 残差始终不收敛则是hessian矩阵病态，适用于非正定-负曲率情形
         if iter == n:
@@ -97,7 +102,7 @@ def _impl(
         inner1 = float(r.T @ z)
         beta: float = inner1 / inner2
         direct = z + beta * direct
-    assert False
+    assert False  # pragma: no cover
 
 
 def _pcg_output_check(output: Tuple[ndarray, float, bool, int, PCG_EXIT_FLAG]) -> None:
