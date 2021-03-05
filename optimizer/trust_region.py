@@ -4,6 +4,7 @@ from typing import Callable, Optional, Tuple
 import numpy
 from mypy_extensions import NamedArg
 from numerical import difference, findiff, linneq
+from numerical.isposdef import isposdef
 from numerical.typedefs import ndarray
 from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN
@@ -42,14 +43,20 @@ class Trust_Region_Options:
                 NamedArg(float, "step"),  # noqa: F821
                 NamedArg(float, "grad"),  # noqa: F821
                 NamedArg(float, "CGiter"),  # noqa: F821
-                NamedArg(Optional[pcg.PCG_EXIT_FLAG], "CGexit"),  # noqa: F821
+                NamedArg(str, "CGexit"),  # noqa: F821
+                NamedArg(str, "posdef"),  # noqa: F821
             ],
             str,
         ]
-    ] = "iter = {iter: 5d}, fval = {fval: 13.6g}, step = {step: 13.6g}, grad = {grad: 12.3g}, CG = {CGiter: 7d}, {CGexit}".format  # noqa: E501
+    ]
+    CGexit: Optional[Callable[[Optional[pcg.PCG_EXIT_FLAG]], str]]
+    posdef: Optional[Callable[[ndarray], str]]
 
     def __init__(self, *, max_iter: int) -> None:
         self.max_iter = max_iter
+        self.format = "iter = {iter: 5d}, fval = {fval: 13.6g}, step = {step: 13.6g}, grad = {grad: 12.3g}, CG = {CGiter: 7d}, {CGexit} {posdef}".format  # noqa: E501
+        self.CGexit = lambda x: x.name if x is not None else "None"
+        self.posdef = lambda H: "-*- ill -*-" if not isposdef(H) else ""
 
 
 class Trust_Region_Result:
@@ -129,6 +136,8 @@ def trust_region(
         return analytic
 
     assert opts.format is not None
+    assert opts.CGexit is not None
+    assert opts.posdef is not None
 
     iter: int = 0
     pcg_iter: int = 0
@@ -152,7 +161,8 @@ def trust_region(
                 step=step_size,
                 grad=grad_infnorm,
                 CGiter=pcg_iter,
-                CGexit=exit_flag,
+                CGexit=opts.CGexit(exit_flag),
+                posdef=opts.posdef(H),
             )
         )
 
