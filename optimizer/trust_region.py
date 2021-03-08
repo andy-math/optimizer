@@ -33,7 +33,7 @@ class Trust_Region_Options:
     tol_grad: float = 1.0e-6
     init_delta: float = 1.0
     max_iter: int
-    check_rel: float = 10.0e-6
+    check_rel: float = 1.0e-2
     check_abs: Optional[float] = None
     format: Optional[
         Callable[
