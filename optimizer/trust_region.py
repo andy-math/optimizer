@@ -176,9 +176,9 @@ def trust_region(
 
         # 失败收敛准则
         if iter and step_size < opts.tol_step:  # 步长太小而不满足PCG正定收敛
-            return Trust_Region_Result(x, iter, success=False)
+            return Trust_Region_Result(x, iter, success=False)  # pragma: no cover
         if iter > opts.max_iter:  # 迭代次数超过要求
-            return Trust_Region_Result(x, iter, success=False)
+            return Trust_Region_Result(x, iter, success=False)  # pragma: no cover
 
         # PCG
         step: ndarray
