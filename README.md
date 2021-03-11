@@ -8,11 +8,14 @@ Python数值优化求解器
 
 ### 无约束凸函数
 `tests/test_trust_banana.py`
-Rosenbrock's banana function: 
-$$f\left(x\right) = 100\left(x_2 - x_1^2\right)^2 + \left(1-x_1\right)^2$$
-$$J_f\left(x\right) = 
+> Rosenbrock's banana function:
+
+![](http://latex.codecogs.com/gif.latex?\\frac{\\partial J}{\\partial \\theta_k^{(j)}}=\\sum_{i:r(i,j)=1}{\\big((\\theta^{(j)})^Tx^{(i)}-y^{(i,j)}\\big)x_k^{(i)}}+\\lambda \\xtheta_k^{(j)}) 
+
+> $$f\left(x\right) = 100\left(x_2 - x_1^2\right)^2 + \left(1-x_1\right)^2$$
+> $$J_f\left(x\right) = 
     \left(-400\left(x_2 - x_1^2\right)x_1 + 2\left(1-x_1\right), 200\left(x_2 - x_1^2\right)\right)$$
-$$\hat{x} = \left(1, 1\right)$$
+> $$\hat{x} = \left(1, 1\right)$$
 ```python
 from optimizer import trust_region
 
@@ -52,12 +55,10 @@ print(result.success, result.x)
 
 ### 带约束非凸函数
 `tests/test_trust_neg_curv.py`
-
-$$f\left(x\right) = \frac{1}{x} + \ln{x}$$
-
-$$f'\left(x\right) = \frac{1}{x} - \frac{1}{x^2}$$
-$$x \in \left[0.25, 10\right]$$
-$$\hat{x} = 1$$
+> $$f\left(x\right) = \frac{1}{x} + \ln{x}$$
+> $$f'\left(x\right) = \frac{1}{x} - \frac{1}{x^2}$$
+> $$x \in \left[0.25, 10\right]$$
+> $$\hat{x} = 1$$
 ```python
 from optimizer import trust_region
 
