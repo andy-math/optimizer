@@ -8,6 +8,7 @@ Python数值优化求解器
 
 ### 无约束凸函数
 `tests/test_trust_banana.py`
+
 > Rosenbrock's banana function:
 > 
 > ![](https://latex.codecogs.com/gif.latex?f\\left\(x\\right\)=100\\left\(x_2-x_1^2\\right\)^2+\\left\(1-x_1\\right\)^2)
@@ -55,10 +56,15 @@ print(result.success, result.x)
 
 ### 带约束非凸函数
 `tests/test_trust_neg_curv.py`
-> $$f\left(x\right) = \frac{1}{x} + \ln{x}$$
-> $$f'\left(x\right) = \frac{1}{x} - \frac{1}{x^2}$$
-> $$x \in \left[0.25, 10\right]$$
-> $$\hat{x} = 1$$
+
+> ![](https://latex.codecogs.com/gif.latex?f\\left\(x\\right\)=\\frac{1}{x}+\\ln{x})
+> 
+> ![](https://latex.codecogs.com/gif.latex?f'\\left\(x\\right\)=\\frac{1}{x}-\\frac{1}{x^2})
+> 
+> ![](https://latex.codecogs.com/gif.latex?x\\in\\left[0.25,10\\right])
+> 
+> ![](https://latex.codecogs.com/gif.latex?\\hat{x}=1)
+
 ```python
 from optimizer import trust_region
 
