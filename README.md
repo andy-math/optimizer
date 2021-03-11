@@ -9,13 +9,9 @@ Python数值优化求解器
 ### 无约束凸函数
 `tests/test_trust_banana.py`
 > Rosenbrock's banana function:
-
-![](http://latex.codecogs.com/gif.latex?\\frac{\\partial J}{\\partial \\theta_k^{(j)}}=\\sum_{i:r(i,j)=1}{\\big((\\theta^{(j)})^Tx^{(i)}-y^{(i,j)}\\big)x_k^{(i)}}+\\lambda \\xtheta_k^{(j)}) 
-
-> $$f\left(x\right) = 100\left(x_2 - x_1^2\right)^2 + \left(1-x_1\right)^2$$
-> $$J_f\left(x\right) = 
-    \left(-400\left(x_2 - x_1^2\right)x_1 + 2\left(1-x_1\right), 200\left(x_2 - x_1^2\right)\right)$$
-> $$\hat{x} = \left(1, 1\right)$$
+> ![](https://latex.codecogs.com/gif.latex?f\\left\(x\\right\)=100\\left\(x_2-x_1^2\\right\)^2+\\left\(1-x_1\\right\)^2)
+> ![](https://latex.codecogs.com/gif.latex?J_f\\left\(x\\right\)=\\left\(-400\\left\(x_2-x_1^2\\right\)x_1+2\\left\(1-x_1\\right\),200\\left\(x_2-x_1^2\\right\)\\right\))
+![](https://latex.codecogs.com/gif.latex?\\hat{x}=\\left\(1,1\\right\))
 ```python
 from optimizer import trust_region
 
