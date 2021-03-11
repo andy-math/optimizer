@@ -12,7 +12,7 @@ Python数值优化求解器
 > 
 > ![](https://latex.codecogs.com/gif.latex?f\\left\(x\\right\)=100\\left\(x_2-x_1^2\\right\)^2+\\left\(1-x_1\\right\)^2)
 > 
-> ![](https://latex.codecogs.com/gif.latex?J_f\\left\(x\\right\)=\\left\(-400\\left\(x_2-x_1^2\\right\)x_1+2\\left\(1-x_1\\right\),200\\left\(x_2-x_1^2\\right\)\\right\))
+> ![](https://latex.codecogs.com/gif.latex?J_f\\left\(x\\right\)=\\left\(-400\\left\(x_2-x_1^2\\right\)x_1-2\\left\(1-x_1\\right\),200\\left\(x_2-x_1^2\\right\)\\right\))
 > 
 > ![](https://latex.codecogs.com/gif.latex?\\hat{x}=\\left\(1,1\\right\))
 
