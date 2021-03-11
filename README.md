@@ -52,7 +52,9 @@ print(result.success, result.x)
 
 ### 带约束非凸函数
 `tests/test_trust_neg_curv.py`
+
 $$f\left(x\right) = \frac{1}{x} + \ln{x}$$
+
 $$f'\left(x\right) = \frac{1}{x} - \frac{1}{x^2}$$
 $$x \in \left[0.25, 10\right]$$
 $$\hat{x} = 1$$
