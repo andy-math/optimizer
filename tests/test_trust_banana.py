@@ -13,7 +13,7 @@ def func(_x: ndarray) -> float:
 def grad(_x: ndarray) -> ndarray:
     x: float = float(_x[0])
     y: float = float(_x[1])
-    return numpy.array([-400 * (y - x * x) * x - 2 * (1 - x), 200 * (y - x ** 2)])
+    return numpy.array([-400 * (y - x * x) * x - 2 * (1 - x), 200 * (y - x * x)])
 
 
 class Test_banana:
