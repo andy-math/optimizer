@@ -53,11 +53,11 @@ def _impl(
     _eps = float(numpy.finfo(numpy.float64).eps)
     n: int = g.shape[0]
     dnrms: ndarray = numpy.sqrt(numpy.sum(H * H, axis=1))
-    R2: ndarray = numpy.maximum(dnrms, numpy.sqrt(numpy.array([_eps])))
+    R: ndarray = numpy.maximum(dnrms, numpy.sqrt(numpy.array([_eps])))
 
     p: ndarray = numpy.zeros((n,))  # 目标点
     r: ndarray = -g  # 残差
-    z: ndarray = r / R2  # 归一化后的残差
+    z: ndarray = r / R  # 归一化后的残差
     direct: ndarray = z  # 搜索方向
 
     inner1: float = float(r.T @ z)
@@ -95,7 +95,7 @@ def _impl(
 
         # 更新残差
         r = r - alpha * ww
-        z = r / R2
+        z = r / R
 
         # 更新搜索方向
         inner2: float = inner1
