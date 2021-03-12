@@ -180,7 +180,9 @@ def trust_region(
                 if grad_infnorm < opts.tol_grad:  # 梯度足够小
                     return Trust_Region_Result(x, iter, success=True)
                 if step_size < opts.tol_step:  # 步长足够小
-                    return Trust_Region_Result(x, iter, success=True)
+                    return Trust_Region_Result(
+                        x, iter, success=True
+                    )  # pragma: no cover
 
         # 失败收敛准则
         if iter and step_size < opts.tol_step:  # 步长太小而不满足PCG正定收敛
