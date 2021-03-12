@@ -151,6 +151,7 @@ def trust_region(
     grad: ndarray = make_grad(x)
     grad_infnorm: float = numpy.max(numpy.abs(grad))
     H = findiff.findiff(gradient, x, constr_A, constr_b, constr_lb, constr_ub)
+    H = (H.T + H) / 2
 
     while True:
 
@@ -214,3 +215,4 @@ def trust_region(
             x, fval, grad = new_x, new_fval, make_grad(new_x)
             grad_infnorm = numpy.max(numpy.abs(grad))
             H = findiff.findiff(gradient, x, constr_A, constr_b, constr_lb, constr_ub)
+            H = (H.T + H) / 2
