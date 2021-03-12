@@ -52,7 +52,7 @@ def _impl(
 ) -> Tuple[ndarray, ndarray, int, PCG_EXIT_FLAG]:
     _eps = float(numpy.finfo(numpy.float64).eps)
     n: int = g.shape[0]
-    dnrms: ndarray = numpy.sum(H * H, axis=1)
+    dnrms: ndarray = numpy.sqrt(numpy.sum(H * H, axis=1))
     R2: ndarray = numpy.maximum(dnrms, numpy.sqrt(numpy.array([_eps])))
 
     p: ndarray = numpy.zeros((n,))  # 目标点
