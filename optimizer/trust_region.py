@@ -121,8 +121,8 @@ def trust_region(
     def objective_ndarray(x: ndarray) -> ndarray:
         return numpy.array([objective(x)])
 
-    grad_infnorm: float
-    init_grad_infnorm: float
+    grad_infnorm: float = numpy.inf
+    init_grad_infnorm: float = 0
 
     def make_grad(x: ndarray) -> ndarray:
         analytic = gradient(x)
