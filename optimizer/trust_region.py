@@ -121,10 +121,8 @@ def trust_region(
     def objective_ndarray(x: ndarray) -> ndarray:
         return numpy.array([objective(x)])
 
-    def make_grad(x: ndarray, iter: float) -> ndarray:
+    def make_grad(x: ndarray) -> ndarray:
         analytic = gradient(x)
-        if iter > 10:
-            return analytic
         findiff_ = findiff.findiff(
             objective_ndarray, x, constr_A, constr_b, constr_lb, constr_ub
         )
@@ -150,7 +148,7 @@ def trust_region(
     exit_flag: Optional[pcg.PCG_EXIT_FLAG] = None
 
     fval: float = objective(x)
-    grad: ndarray = make_grad(x, iter)
+    grad: ndarray = make_grad(x)
     grad_infnorm: float = numpy.max(numpy.abs(grad))
     H = findiff.findiff(gradient, x, constr_A, constr_b, constr_lb, constr_ub)
     H = (H.T + H) / 2
@@ -214,7 +212,7 @@ def trust_region(
 
         # 对符合下降要求的候选点进行更新
         if new_fval < fval:
-            x, fval, grad = new_x, new_fval, make_grad(new_x, iter)
+            x, fval, grad = new_x, new_fval, make_grad(new_x)
             grad_infnorm = numpy.max(numpy.abs(grad))
             H = findiff.findiff(gradient, x, constr_A, constr_b, constr_lb, constr_ub)
             H = (H.T + H) / 2
