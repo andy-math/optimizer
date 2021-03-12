@@ -121,6 +121,9 @@ def trust_region(
     def objective_ndarray(x: ndarray) -> ndarray:
         return numpy.array([objective(x)])
 
+    grad_infnorm: float
+    init_grad_infnorm: float
+
     def make_grad(x: ndarray) -> ndarray:
         analytic = gradient(x)
         findiff_ = findiff.findiff(
@@ -128,7 +131,10 @@ def trust_region(
         )
         assert len(findiff_.shape) == 2 and findiff_.shape[0] == 1
         findiff_.shape = (findiff_.shape[1],)
-        if difference.relative(analytic, findiff_) > opts.check_rel:
+        if (
+            difference.relative(analytic, findiff_) > opts.check_rel
+            and grad_infnorm > init_grad_infnorm * opts.check_rel
+        ):
             raise Grad_Check_Failed(difference.relative, analytic, findiff_)
         if opts.check_abs is not None:
             if difference.absolute(analytic, findiff_) > opts.check_abs:
@@ -149,7 +155,8 @@ def trust_region(
 
     fval: float = objective(x)
     grad: ndarray = make_grad(x)
-    grad_infnorm: float = numpy.max(numpy.abs(grad))
+    grad_infnorm = numpy.max(numpy.abs(grad))
+    init_grad_infnorm = grad_infnorm
     H = findiff.findiff(gradient, x, constr_A, constr_b, constr_lb, constr_ub)
     H = (H.T + H) / 2
 
