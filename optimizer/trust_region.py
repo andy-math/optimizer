@@ -153,6 +153,7 @@ def trust_region(
     isposdef: Optional[bool] = None
     exit_flag: Optional[pcg.PCG_EXIT_FLAG] = None
 
+    assert linneq.check(x.reshape(-1, 1), constr_A, constr_b, constr_lb, constr_ub)
     fval: float = objective(x)
     grad: ndarray = make_grad(x)
     grad_infnorm = numpy.max(numpy.abs(grad))
