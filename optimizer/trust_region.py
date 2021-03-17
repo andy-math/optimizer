@@ -150,7 +150,6 @@ def trust_region(
                 raise Grad_Check_Failed(difference.absolute, analytic, findiff_)
         return analytic
 
-    assert opts.format is not None
     assert opts.CGexit is not None
     assert opts.posdef is not None
 
@@ -170,18 +169,18 @@ def trust_region(
     H = (H.T + H) / 2
 
     while True:
-
-        print(
-            opts.format(
-                iter=iter,
-                fval=fval,
-                step=step_size,
-                grad=grad_infnorm,
-                CGiter=pcg_iter,
-                CGexit=opts.CGexit(exit_flag),
-                posdef=opts.posdef(H),
+        if opts.format is not None:
+            print(
+                opts.format(
+                    iter=iter,
+                    fval=fval,
+                    step=step_size,
+                    grad=grad_infnorm,
+                    CGiter=pcg_iter,
+                    CGexit=opts.CGexit(exit_flag),
+                    posdef=opts.posdef(H),
+                )
             )
-        )
 
         # 成功收敛准则
         if isposdef is not None and exit_flag is not None:  # PCG正定收敛
