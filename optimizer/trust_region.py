@@ -35,6 +35,7 @@ class Trust_Region_Options:
     max_iter: int
     check_rel: float = 1.0e-2
     check_abs: Optional[float] = None
+    check_iter: Optional[int] = None
     format: Optional[
         Callable[
             [
@@ -121,21 +122,29 @@ def trust_region(
     def objective_ndarray(x: ndarray) -> ndarray:
         return numpy.array([objective(x)])
 
+    iter: int = 0
     grad_infnorm: float = numpy.inf
     init_grad_infnorm: float = 0
 
     def make_grad(x: ndarray) -> ndarray:
         analytic = gradient(x)
+        if (
+            (opts.check_iter is not None and iter > opts.check_iter)
+            or grad_infnorm < init_grad_infnorm * opts.check_rel
+        ) and opts.check_abs is None:
+            return analytic
+
         findiff_ = findiff.findiff(
             objective_ndarray, x, constr_A, constr_b, constr_lb, constr_ub
         )
         assert len(findiff_.shape) == 2 and findiff_.shape[0] == 1
         findiff_.shape = (findiff_.shape[1],)
+
         if (
-            difference.relative(analytic, findiff_) > opts.check_rel
-            and grad_infnorm > init_grad_infnorm * opts.check_rel
-        ):
-            raise Grad_Check_Failed(difference.relative, analytic, findiff_)
+            opts.check_iter is None or iter <= opts.check_iter
+        ) and grad_infnorm >= init_grad_infnorm * opts.check_rel:
+            if difference.relative(analytic, findiff_) > opts.check_rel:
+                raise Grad_Check_Failed(difference.relative, analytic, findiff_)
         if opts.check_abs is not None:
             if difference.absolute(analytic, findiff_) > opts.check_abs:
                 raise Grad_Check_Failed(difference.absolute, analytic, findiff_)
@@ -145,7 +154,6 @@ def trust_region(
     assert opts.CGexit is not None
     assert opts.posdef is not None
 
-    iter: int = 0
     pcg_iter: int = 0
     delta: float = opts.init_delta
     step_size: float = 0.0
