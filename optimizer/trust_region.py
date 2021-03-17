@@ -6,6 +6,7 @@ from mypy_extensions import NamedArg
 from numerical import difference, findiff, linneq
 from numerical.isposdef import isposdef
 from numerical.typedefs import ndarray
+from numpy.lib.function_base import gradient
 from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN
 
@@ -63,11 +64,13 @@ class Trust_Region_Options:
 class Trust_Region_Result:
     x: ndarray
     iter: int
+    gradient: ndarray
     success: bool
 
-    def __init__(self, x: ndarray, iter: int, *, success: bool) -> None:
+    def __init__(self, x: ndarray, iter: int, grad: ndarray, *, success: bool) -> None:
         self.x = x
         self.iter = iter
+        self.gradient = grad
         self.success = success
 
 
@@ -186,17 +189,17 @@ def trust_region(
         if isposdef is not None and exit_flag is not None:  # PCG正定收敛
             if isposdef and exit_flag == pcg.PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE:
                 if grad_infnorm < opts.tol_grad:  # 梯度足够小
-                    return Trust_Region_Result(x, iter, success=True)
+                    return Trust_Region_Result(x, iter, grad, success=True)
                 if step_size < opts.tol_step:  # 步长足够小
                     return Trust_Region_Result(
-                        x, iter, success=True
+                        x, iter, grad, success=True
                     )  # pragma: no cover
 
         # 失败收敛准则
         if iter and step_size < opts.tol_step:  # 步长太小而不满足PCG正定收敛
-            return Trust_Region_Result(x, iter, success=False)  # pragma: no cover
+            return Trust_Region_Result(x, iter, grad, success=False)  # pragma: no cover
         if iter > opts.max_iter:  # 迭代次数超过要求
-            return Trust_Region_Result(x, iter, success=False)  # pragma: no cover
+            return Trust_Region_Result(x, iter, grad, success=False)  # pragma: no cover
 
         # PCG
         step: ndarray
