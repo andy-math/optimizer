@@ -6,7 +6,6 @@ from mypy_extensions import NamedArg
 from numerical import difference, findiff, linneq
 from numerical.isposdef import isposdef
 from numerical.typedefs import ndarray
-from numpy.lib.function_base import gradient
 from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN
 
