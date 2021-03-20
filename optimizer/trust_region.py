@@ -204,7 +204,7 @@ def trust_region(
             return Trust_Region_Result(x, iter, grad, success=False)  # pragma: no cover
 
         if step is None:
-            delta = step_size / 4.0
+            delta /= 4.0
             continue
 
         assert qpval is not None
@@ -219,7 +219,7 @@ def trust_region(
 
         # 根据下降率确定信赖域缩放
         reduce: float = new_fval - fval
-        ratio: float = 1 if reduce <= qpval else (0 if reduce >= 0 else reduce / qpval)
+        ratio: float = 0 if reduce >= 0 else (1 if reduce <= qpval else reduce / qpval)
         if ratio >= 0.75 and step_size >= 0.9 * delta:
             delta *= 2
         elif ratio <= 0.25:
