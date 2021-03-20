@@ -190,7 +190,7 @@ def pcg(
     exit_flag: PCG_EXIT_FLAG
     p, direct, iter, exit_flag = _impl(g, H, constraints, delta)
 
-    def make_valid_gradient() -> Tuple[Optional[ndarray], numpy.ndarray[numpy.bool_]]:
+    def make_valid_gradient() -> Tuple[Optional[ndarray], bool]:
         p = -g
         norm_p = float(numpy.linalg.norm(p))  # type: ignore
         if norm_p > 0:
@@ -210,9 +210,11 @@ def pcg(
             p = p * delta
             if numpy.all(numpy.logical_and(lb <= p, p <= ub)):  # type: ignore
                 break
-        if numpy.all(eliminated):
-            return None, eliminated
-        return p, eliminated
+        p.shape = (n, 1)
+        if numpy.all(eliminated) or not check(p, *constraints):
+            return None, True
+        p.shape = (n,)
+        return p, bool(numpy.any(eliminated))  # type: ignore
 
     def make_valid_optimal(
         exit_flag: PCG_EXIT_FLAG,
@@ -231,8 +233,8 @@ def pcg(
             p_new.shape = (n,)
             return p_new, exit_flag
         else:
-            p_grad, eliminated = make_valid_gradient()
-            if numpy.any(eliminated):  # type: ignore
+            p_grad, violated = make_valid_gradient()
+            if violated:  # type: ignore
                 return p_grad, PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS
             return p_grad, exit_flag
 
