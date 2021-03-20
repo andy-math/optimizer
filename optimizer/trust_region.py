@@ -132,7 +132,7 @@ def trust_region(
         analytic = gradient(x)
         if opts.check_abs is None:
             if opts.check_iter is not None and iter > opts.check_iter:
-                return analytic
+                return analytic  # pragma: no cover
             if grad_infnorm < init_grad_infnorm * opts.check_rel:
                 return analytic
 
