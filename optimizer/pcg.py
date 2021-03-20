@@ -192,6 +192,10 @@ def pcg(
 
     def make_valid_gradient() -> Tuple[Optional[ndarray], numpy.ndarray[numpy.bool_]]:
         p = -g
+        norm_p = float(numpy.linalg.norm(p))  # type: ignore
+        if norm_p > 0:
+            p /= norm_p
+        p = p * delta
         (n,) = p.shape
         lb, ub = margin(numpy.zeros((n,)), *constraints)
         eliminated = numpy.zeros((n,), dtype=numpy.bool_)
