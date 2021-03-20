@@ -234,7 +234,7 @@ def pcg(
             return p_new, exit_flag
         else:
             p_grad, violated = make_valid_gradient()
-            if violated:  # type: ignore
+            if violated:
                 return p_grad, PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS
             return p_grad, exit_flag
 
