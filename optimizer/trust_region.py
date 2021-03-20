@@ -181,34 +181,20 @@ def trust_region(
                 )
             )
 
+        if delta < opts.tol_step:  # 信赖域太小
+            return Trust_Region_Result(x, iter, grad, success=False)  # pragma: no cover
+
         # PCG
         step: Optional[ndarray]
         qpval: Optional[float]
         step, qpval, pcg_iter, exit_flag = pcg.pcg(grad, H, constraints, delta)
         iter += 1
 
-        # 成功收敛准则
-        assert exit_flag is not None
-        if exit_flag == pcg.PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE:  # PCG正定收敛
-            if grad_infnorm < opts.tol_grad:  # 梯度足够小
-                return Trust_Region_Result(x, iter, grad, success=True)
-            if step_size < opts.tol_step:  # 步长足够小
-                return Trust_Region_Result(
-                    x, iter, grad, success=True
-                )  # pragma: no cover
-
-        # 失败收敛准则
-        if delta < opts.tol_step:  # 步长太小
-            return Trust_Region_Result(x, iter, grad, success=False)  # pragma: no cover
-        if iter > opts.max_iter:  # 迭代次数超过要求
-            return Trust_Region_Result(x, iter, grad, success=False)  # pragma: no cover
-
         if step is None:
             delta /= 4.0
             continue
 
         assert qpval is not None
-
         step_size = numpy.linalg.norm(step)  # type: ignore
 
         # 试探更新自变量
@@ -237,3 +223,16 @@ def trust_region(
                 constr_lb - x,
                 constr_ub - x,
             )
+
+        # 成功收敛准则
+        assert exit_flag is not None
+        if exit_flag == pcg.PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE:  # PCG正定收敛
+            if grad_infnorm < opts.tol_grad:  # 梯度足够小
+                return Trust_Region_Result(x, iter, grad, success=True)
+            if step_size < opts.tol_step:  # 步长足够小
+                return Trust_Region_Result(
+                    x, iter, grad, success=True
+                )  # pragma: no cover
+
+        if iter > opts.max_iter:  # 迭代次数超过要求
+            return Trust_Region_Result(x, iter, grad, success=False)  # pragma: no cover
