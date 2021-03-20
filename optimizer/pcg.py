@@ -114,7 +114,7 @@ def _impl(
         # 违反约束
         pnew.shape = (n, 1)
         if not check(pnew, *constraints):
-            return (p, direct, iter, _exit.VIOLATE_CONSTRAINTS)
+            return (p, direct, iter, _exit.VIOLATE_CONSTRAINTS)  # pragma: no cover
         pnew.shape = (n,)
 
         # 更新坐标点
