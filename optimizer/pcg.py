@@ -223,7 +223,7 @@ def pcg(
             p_new = p + distance * direct
             p_new.shape = (n, 1)
             if not check(p_new, *constraints):
-                return p, PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS
+                return p, PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS  # pragma: no cover
             p_new.shape = (n,)
             return p_new, exit_flag
         else:
@@ -239,7 +239,7 @@ def pcg(
     # 负曲率：迭代成功时不再前进，迭代失败时返回裁剪梯度
     if exit_flag == PCG_EXIT_FLAG.NEGATIVE_CURVATURE:
         if iter > 0:
-            return p, qpval(p), iter, exit_flag
+            return p, qpval(p), iter, exit_flag  # pragma: no cover
         else:
             p_clip, exit_flag = make_valid_optimal(exit_flag)
             return p_clip, qpval(p_clip), iter, exit_flag
@@ -252,7 +252,7 @@ def pcg(
     # 违反约束：迭代成功时不再前进，迭代失败时返回裁剪梯度
     if exit_flag == PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS:
         if iter > 0:
-            return p, qpval(p), iter, exit_flag
+            return p, qpval(p), iter, exit_flag  # pragma: no cover
         else:
             p_clip, exit_flag = make_valid_optimal(exit_flag)
             return p_clip, qpval(p_clip), iter, exit_flag
