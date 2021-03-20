@@ -36,7 +36,7 @@ class Test_neg_curve:
             opts,
         )
         assert result.success
-        assert numpy.all(numpy.round(result.x, 8) == 1)
+        assert numpy.all(numpy.round(result.x, 7) == 1)
         assert 3 < result.iter < 15
 
 

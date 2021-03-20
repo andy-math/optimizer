@@ -130,11 +130,11 @@ def trust_region(
 
     def make_grad(x: ndarray) -> ndarray:
         analytic = gradient(x)
-        if (
-            (opts.check_iter is not None and iter > opts.check_iter)
-            or grad_infnorm < init_grad_infnorm * opts.check_rel
-        ) and opts.check_abs is None:
-            return analytic
+        if opts.check_abs is None:
+            if opts.check_iter is not None and iter > opts.check_iter:
+                return analytic
+            if grad_infnorm < init_grad_infnorm * opts.check_rel:
+                return analytic
 
         findiff_ = findiff.findiff(
             objective_ndarray, x, constr_A, constr_b, constr_lb, constr_ub
@@ -142,11 +142,8 @@ def trust_region(
         assert len(findiff_.shape) == 2 and findiff_.shape[0] == 1
         findiff_.shape = (findiff_.shape[1],)
 
-        if (
-            opts.check_iter is None or iter <= opts.check_iter
-        ) and grad_infnorm >= init_grad_infnorm * opts.check_rel:
-            if difference.relative(analytic, findiff_) > opts.check_rel:
-                raise Grad_Check_Failed(difference.relative, analytic, findiff_)
+        if difference.relative(analytic, findiff_) > opts.check_rel:
+            raise Grad_Check_Failed(difference.relative, analytic, findiff_)
         if opts.check_abs is not None:
             if difference.absolute(analytic, findiff_) > opts.check_abs:
                 raise Grad_Check_Failed(difference.absolute, analytic, findiff_)
@@ -159,7 +156,6 @@ def trust_region(
     delta: float = opts.init_delta
     step_size: float = 0.0
 
-    isposdef: Optional[bool] = None
     exit_flag: Optional[pcg.PCG_EXIT_FLAG] = None
 
     assert linneq.check(x.reshape(-1, 1), constr_A, constr_b, constr_lb, constr_ub)
@@ -169,6 +165,7 @@ def trust_region(
     init_grad_infnorm = grad_infnorm
     H = findiff.findiff(gradient, x, constr_A, constr_b, constr_lb, constr_ub)
     H = (H.T + H) / 2
+    constraints = constr_A, constr_b - constr_A @ x, constr_lb - x, constr_ub - x
 
     while True:
         if opts.format is not None:
@@ -184,39 +181,38 @@ def trust_region(
                 )
             )
 
+        # PCG
+        step: Optional[ndarray]
+        qpval: Optional[float]
+        step, qpval, pcg_iter, exit_flag = pcg.pcg(grad, H, constraints, delta)
+        iter += 1
+
         # 成功收敛准则
-        if isposdef is not None and exit_flag is not None:  # PCG正定收敛
-            if isposdef and exit_flag == pcg.PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE:
-                if grad_infnorm < opts.tol_grad:  # 梯度足够小
-                    return Trust_Region_Result(x, iter, grad, success=True)
-                if step_size < opts.tol_step:  # 步长足够小
-                    return Trust_Region_Result(
-                        x, iter, grad, success=True
-                    )  # pragma: no cover
+        assert exit_flag is not None
+        if exit_flag == pcg.PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE:  # PCG正定收敛
+            if grad_infnorm < opts.tol_grad:  # 梯度足够小
+                return Trust_Region_Result(x, iter, grad, success=True)
+            if step_size < opts.tol_step:  # 步长足够小
+                return Trust_Region_Result(
+                    x, iter, grad, success=True
+                )  # pragma: no cover
 
         # 失败收敛准则
-        if iter and step_size < opts.tol_step:  # 步长太小而不满足PCG正定收敛
+        if delta < opts.tol_step:  # 步长太小
             return Trust_Region_Result(x, iter, grad, success=False)  # pragma: no cover
         if iter > opts.max_iter:  # 迭代次数超过要求
             return Trust_Region_Result(x, iter, grad, success=False)  # pragma: no cover
 
-        # PCG
-        step: ndarray
-        qpval: float
-        step, qpval, isposdef, pcg_iter, exit_flag = pcg.pcg(grad, H, delta)
+        if step is None:
+            delta = step_size / 4.0
+            continue
+
+        assert qpval is not None
+
         step_size = numpy.linalg.norm(step)  # type: ignore
-        iter += 1
 
         # 试探更新自变量
         new_x = x + step
-
-        # 违反约束时丢弃isposdef和exit_flag以拒绝判定为收敛
-        new_x.shape = (new_x.shape[0], 1)
-        if not linneq.check(new_x, constr_A, constr_b, constr_lb, constr_ub):
-            isposdef, exit_flag = None, None
-            delta = step_size / 4
-            continue
-        new_x.shape = (new_x.shape[0],)
 
         # 对通过约束检查的自变量进行函数求值
         new_fval = objective(new_x)
@@ -227,7 +223,7 @@ def trust_region(
         if ratio >= 0.75 and step_size >= 0.9 * delta:
             delta *= 2
         elif ratio <= 0.25:
-            delta = step_size / 4
+            delta = step_size / 4.0
 
         # 对符合下降要求的候选点进行更新
         if new_fval < fval:
@@ -235,3 +231,9 @@ def trust_region(
             grad_infnorm = numpy.max(numpy.abs(grad))
             H = findiff.findiff(gradient, x, constr_A, constr_b, constr_lb, constr_ub)
             H = (H.T + H) / 2
+            constraints = (
+                constr_A,
+                constr_b - constr_A @ x,
+                constr_lb - x,
+                constr_ub - x,
+            )

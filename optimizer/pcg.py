@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import enum
-from typing import Tuple
+from typing import Optional, Tuple
 
 import numpy
+from numerical.linneq import check, constraint_check, margin
 from numerical.typedefs import ndarray
 from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
@@ -13,12 +16,19 @@ class PCG_EXIT_FLAG(enum.Enum):
     RESIDUAL_CONVERGENCE = enum.auto()
     NEGATIVE_CURVATURE = enum.auto()
     OUT_OF_TRUST_REGION = enum.auto()
+    VIOLATE_CONSTRAINTS = enum.auto()
 
 
-def _input_check(input: Tuple[ndarray, ndarray, float]) -> None:
-    g, H, delta = input
+_exit = PCG_EXIT_FLAG
+
+
+def _input_check(
+    input: Tuple[ndarray, ndarray, Tuple[ndarray, ndarray, ndarray, ndarray], float]
+) -> None:
+    g, H, constraints, delta = input
     assertNoInfNaN(g)
     assertNoInfNaN(H)
+    constraint_check(*constraints)
     assertNoInfNaN_float(delta)
 
 
@@ -29,12 +39,21 @@ def _impl_output_check(output: Tuple[ndarray, ndarray, int, PCG_EXIT_FLAG]) -> N
 
 
 N = dyn_typing.SizeVar()
+nConstraints = dyn_typing.SizeVar()
 
 
-@dyn_typing.dyn_check_3(
+@dyn_typing.dyn_check_4(
     input=(
         dyn_typing.NDArray(numpy.float64, (N,)),
         dyn_typing.NDArray(numpy.float64, (N, N)),
+        dyn_typing.Tuple(
+            (
+                dyn_typing.NDArray(numpy.float64, (nConstraints, N)),
+                dyn_typing.NDArray(numpy.float64, (nConstraints,)),
+                dyn_typing.NDArray(numpy.float64, (N,)),
+                dyn_typing.NDArray(numpy.float64, (N,)),
+            )
+        ),
         dyn_typing.Float(),
     ),
     output=dyn_typing.Tuple(
@@ -46,15 +65,22 @@ N = dyn_typing.SizeVar()
         )
     ),
 )
-@bind_checker.bind_checker_3(input=_input_check, output=_impl_output_check)
+@bind_checker.bind_checker_4(input=_input_check, output=_impl_output_check)
 def _impl(
-    g: ndarray, H: ndarray, delta: float
+    g: ndarray,
+    H: ndarray,
+    constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
+    delta: float,
 ) -> Tuple[ndarray, ndarray, int, PCG_EXIT_FLAG]:
+
+    # 取 max{ l2norm(col(H)), sqrt(eps) }
+    # 预条件子 M = C.T @ C == diag(R)
+    # 其中 H === H.T  =>  norm(col(H)) === norm(row(H))
     _eps = float(numpy.finfo(numpy.float64).eps)
-    n: int = g.shape[0]
     dnrms: ndarray = numpy.sqrt(numpy.sum(H * H, axis=1))
     R: ndarray = numpy.maximum(dnrms, numpy.sqrt(numpy.array([_eps])))
 
+    (n,) = g.shape
     p: ndarray = numpy.zeros((n,))  # 目标点
     r: ndarray = -g  # 残差
     z: ndarray = r / R  # 归一化后的残差
@@ -65,22 +91,17 @@ def _impl(
     for iter in range(n + 1):
         # 残差收敛性检查
         if numpy.max(numpy.abs(z)) < numpy.sqrt(_eps):
-            return (p, direct, iter, PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE)
+            return (p, direct, iter, _exit.RESIDUAL_CONVERGENCE)
 
         # 残差始终不收敛则是hessian矩阵病态，适用于非正定-负曲率情形
         if iter == n:
-            return (
-                p,
-                direct,
-                iter,
-                PCG_EXIT_FLAG.NEGATIVE_CURVATURE,
-            )  # pragma: no cover
+            return (p, direct, iter, _exit.NEGATIVE_CURVATURE)  # pragma: no cover
 
         # 负曲率检查
         ww: ndarray = H @ direct
         denom: float = float(direct.T @ ww)
         if denom <= 0:
-            return (p, direct, iter, PCG_EXIT_FLAG.NEGATIVE_CURVATURE)
+            return (p, direct, iter, _exit.NEGATIVE_CURVATURE)
 
         # 试探坐标点
         alpha: float = inner1 / denom
@@ -88,7 +109,13 @@ def _impl(
 
         # 目标点超出信赖域
         if numpy.linalg.norm(pnew) > delta:  # type: ignore
-            return (p, direct, iter, PCG_EXIT_FLAG.OUT_OF_TRUST_REGION)
+            return (p, direct, iter, _exit.OUT_OF_TRUST_REGION)
+
+        # 违反约束
+        pnew.shape = (n, 1)
+        if not check(pnew, *constraints):
+            return (p, direct, iter, _exit.VIOLATE_CONSTRAINTS)
+        pnew.shape = (n,)
 
         # 更新坐标点
         p = pnew
@@ -105,76 +132,130 @@ def _impl(
     assert False  # pragma: no cover
 
 
-def _pcg_output_check(output: Tuple[ndarray, float, bool, int, PCG_EXIT_FLAG]) -> None:
-    p, qpval, _, _, _ = output
-    assertNoInfNaN(p)
-    assertNoInfNaN_float(qpval)
+def _pcg_output_check(
+    output: Tuple[Optional[ndarray], Optional[float], int, PCG_EXIT_FLAG]
+) -> None:
+    p, qpval, _, _ = output
+    if p is not None:
+        assert qpval is not None
+        assertNoInfNaN(p)
+        assertNoInfNaN_float(qpval)
+    else:
+        assert qpval is None
 
 
 N = dyn_typing.SizeVar()
+nConstraints = dyn_typing.SizeVar()
 
 
-@dyn_typing.dyn_check_3(
+@dyn_typing.dyn_check_4(
     input=(
         dyn_typing.NDArray(numpy.float64, (N,)),
         dyn_typing.NDArray(numpy.float64, (N, N)),
+        dyn_typing.Tuple(
+            (
+                dyn_typing.NDArray(numpy.float64, (nConstraints, N)),
+                dyn_typing.NDArray(numpy.float64, (nConstraints,)),
+                dyn_typing.NDArray(numpy.float64, (N,)),
+                dyn_typing.NDArray(numpy.float64, (N,)),
+            )
+        ),
         dyn_typing.Float(),
     ),
     output=dyn_typing.Tuple(
         (
-            dyn_typing.NDArray(numpy.float64, (N,)),
-            dyn_typing.Float(),
-            dyn_typing.Bool(),
+            dyn_typing.Optional(dyn_typing.NDArray(numpy.float64, (N,))),
+            dyn_typing.Optional(dyn_typing.Float()),
             dyn_typing.Int(),
             dyn_typing.Class(PCG_EXIT_FLAG),
         )
     ),
 )
-@bind_checker.bind_checker_3(input=_input_check, output=_pcg_output_check)
+@bind_checker.bind_checker_4(input=_input_check, output=_pcg_output_check)
 def pcg(
-    g: ndarray, H: ndarray, delta: float
-) -> Tuple[ndarray, float, bool, int, PCG_EXIT_FLAG]:
+    g: ndarray,
+    H: ndarray,
+    constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
+    delta: float,
+) -> Tuple[Optional[ndarray], Optional[float], int, PCG_EXIT_FLAG]:
+    def qpval(p: Optional[ndarray]) -> Optional[float]:
+        if p is None:
+            return None
+        return float(g.T @ p + (0.5 * p).T @ H @ p)
+
     # 主循环
     p: ndarray
     direct: ndarray
     iter: int
-    exit_code: PCG_EXIT_FLAG
-    p, direct, iter, exit_code = _impl(g, H, delta)
+    exit_flag: PCG_EXIT_FLAG
+    p, direct, iter, exit_flag = _impl(g, H, constraints, delta)
 
-    # 输出变量
-    posdef: bool
+    def make_valid_gradient() -> Tuple[Optional[ndarray], numpy.ndarray[numpy.bool_]]:
+        p = -g
+        (n,) = p.shape
+        lb, ub = margin(numpy.zeros((n,)), *constraints)
+        eliminated = numpy.zeros((n,), dtype=numpy.bool_)
+        while True:
+            index: numpy.ndarray[numpy.bool_]
+            index = numpy.logical_or(p < lb, ub < p)  # type: ignore
+            p[index] = 0.0
+            eliminated[index] = True
+            norm_p = float(numpy.linalg.norm(p))  # type: ignore
+            if norm_p > 0:
+                p /= norm_p
+            p = p * delta
+            if numpy.all(numpy.logical_and(lb <= p, p <= ub)):  # type: ignore
+                break
+        if numpy.all(eliminated):
+            return None, eliminated
+        return p, eliminated
 
-    # 残差收敛情形
-    if exit_code == PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE:
-        posdef = True
+    def make_valid_optimal(
+        exit_flag: PCG_EXIT_FLAG,
+    ) -> Tuple[Optional[ndarray], PCG_EXIT_FLAG]:
+        nonlocal direct
+        (n,) = p.shape
+        if iter > 0:
+            norm_d = float(numpy.linalg.norm(direct))  # type: ignore
+            if norm_d > 0:
+                direct /= norm_d
+            distance = float(numpy.sqrt(delta * delta - p.T @ p))  # 勾股定理
+            p_new = p + distance * direct
+            p_new.shape = (n, 1)
+            if not check(p_new, *constraints):
+                return p, PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS
+            p_new.shape = (n,)
+            return p_new, exit_flag
+        else:
+            p_grad, eliminated = make_valid_gradient()
+            if numpy.any(eliminated):  # type: ignore
+                return p_grad, PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS
+            return p_grad, exit_flag
 
-    # 负曲率情形
-    # 未迭代则以一阶逼近使用grad
-    elif exit_code == PCG_EXIT_FLAG.NEGATIVE_CURVATURE:
-        posdef = False
-        if not iter:
-            norm_g: float = float(numpy.linalg.norm(g))  # type: ignore
-            p = -g
-            if norm_g > 0:
-                p = p / norm_g
-            p = delta * p
+    # 残差收敛：对迭代成功和失败均适用
+    if exit_flag == PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE:
+        return p, qpval(p), iter, exit_flag
 
-    # 超出信赖域情形
-    # 延搜索方向走到信赖域边界
-    elif exit_code == PCG_EXIT_FLAG.OUT_OF_TRUST_REGION:
-        """
-        pnew == p + alpha * d
-        p.T @ p + alpha * alpha * d.T @ d == delta * delta
-            (where p.T @ d === 0, due to orthogonality)
-        alpha = sqrt( (delta * delta - p.T @ p)/(d.T @ d) )
-        """
-        posdef = True
-        alpha: float = float(
-            numpy.sqrt((delta * delta - p.T @ p) / (direct.T @ direct))
-        )
-        p = p + alpha * direct
+    # 负曲率：迭代成功时不再前进，迭代失败时返回裁剪梯度
+    if exit_flag == PCG_EXIT_FLAG.NEGATIVE_CURVATURE:
+        if iter > 0:
+            return p, qpval(p), iter, exit_flag
+        else:
+            p_clip, exit_flag = make_valid_optimal(exit_flag)
+            return p_clip, qpval(p_clip), iter, exit_flag
 
-    else:
-        assert False  # pragma: no cover
-    qpval: float = float(g.T @ p + (0.5 * p).T @ H @ p)
-    return p, qpval, posdef, iter, exit_code
+    # 超出信赖域：迭代成功时前进，迭代失败时返回裁剪梯度
+    if exit_flag == PCG_EXIT_FLAG.OUT_OF_TRUST_REGION:
+        p_clip, exit_flag = make_valid_optimal(exit_flag)
+        return p_clip, qpval(p_clip), iter, exit_flag
+
+    # 违反约束：迭代成功时不再前进，迭代失败时返回裁剪梯度
+    if exit_flag == PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS:
+        if iter > 0:
+            return p, qpval(p), iter, exit_flag
+        else:
+            p_clip, exit_flag = make_valid_optimal(exit_flag)
+            return p_clip, qpval(p_clip), iter, exit_flag
+
+    # 其它情形：不应存在
+    assert False  # pragma: no cover
