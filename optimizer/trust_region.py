@@ -170,7 +170,7 @@ def trust_region(
     def get_info(
         x: ndarray, iter: int, grad_infnorm: float, init_grad_infnorm: float
     ) -> Tuple[ndarray, float, ndarray, Tuple[ndarray, ndarray, ndarray, ndarray]]:
-        grad = make_grad(new_x, iter, grad_infnorm, init_grad_infnorm)
+        grad = make_grad(x, iter, grad_infnorm, init_grad_infnorm)
         grad_infnorm = numpy.max(numpy.abs(grad))
         H = findiff.findiff(gradient, x, constr_A, constr_b, constr_lb, constr_ub)
         H = (H.T + H) / 2.0
