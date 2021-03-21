@@ -50,13 +50,11 @@ class Trust_Region_Options:
             str,
         ]
     ]
-    CGexit: Optional[Callable[[Optional[pcg.PCG_EXIT_FLAG]], str]]
     posdef: Optional[Callable[[ndarray], str]]
 
     def __init__(self, *, max_iter: int) -> None:
         self.max_iter = max_iter
-        self.format = "iter = {iter: 5d}, fval = {fval: 13.6g}, step = {step: 13.6g}, grad = {grad: 12.3g}, CG = {CGiter: 7d}, {CGexit} {posdef}".format  # noqa: E501
-        self.CGexit = lambda x: x.name if x is not None else "None"
+        self.format = "iter = {iter: 5d}, fval = {fval: 13.6g}, step = {step: 13.6g}, grad = {grad: 12.3g}, CG = {CGiter: 2d}, {CGexit} {posdef}".format  # noqa: E501
         self.posdef = lambda H: "-*- ill -*-" if not isposdef(H) else ""
 
 
@@ -124,11 +122,31 @@ def trust_region(
     def objective_ndarray(x: ndarray) -> ndarray:
         return numpy.array([objective(x)])
 
-    iter: int = 0
-    grad_infnorm: float = numpy.inf
-    init_grad_infnorm: float = 0
+    def output(
+        iter: int,
+        fval: float,
+        step_size: float,
+        grad_infnorm: float,
+        CGiter: Optional[int],
+        CGexit: Optional[pcg.PCG_EXIT_FLAG],
+        hessian: ndarray,
+    ) -> None:
+        if opts.format is not None:
+            print(
+                opts.format(
+                    iter=iter,
+                    fval=fval,
+                    step=step_size,
+                    grad=grad_infnorm,
+                    CGiter=CGiter if CGiter is not None else 0,
+                    CGexit=CGexit.name if CGexit is not None else "None",
+                    posdef=opts.posdef(hessian) if opts.posdef is not None else "",
+                )
+            )
 
-    def make_grad(x: ndarray) -> ndarray:
+    def make_grad(
+        x: ndarray, iter: int, grad_infnorm: float, init_grad_infnorm: float
+    ) -> ndarray:
         analytic = gradient(x)
         if opts.check_abs is None:
             if opts.check_iter is not None and iter > opts.check_iter:
@@ -149,59 +167,57 @@ def trust_region(
                 raise Grad_Check_Failed(difference.absolute, analytic, findiff_)
         return analytic
 
-    assert opts.CGexit is not None
-    assert opts.posdef is not None
+    def get_info(
+        x: ndarray, iter: int, grad_infnorm: float, init_grad_infnorm: float
+    ) -> Tuple[ndarray, float, ndarray, Tuple[ndarray, ndarray, ndarray, ndarray]]:
+        grad = make_grad(new_x, iter, grad_infnorm, init_grad_infnorm)
+        grad_infnorm = numpy.max(numpy.abs(grad))
+        H = findiff.findiff(gradient, x, constr_A, constr_b, constr_lb, constr_ub)
+        H = (H.T + H) / 2.0
+        constraints = (constr_A, constr_b - constr_A @ x, constr_lb - x, constr_ub - x)
+        return grad, grad_infnorm, H, constraints
 
-    pcg_iter: int = 0
+    iter: int = 0
     delta: float = opts.init_delta
-    step_size: float = 0.0
-
-    exit_flag: Optional[pcg.PCG_EXIT_FLAG] = None
-
     assert linneq.check(x.reshape(-1, 1), constr_A, constr_b, constr_lb, constr_ub)
-    fval: float = objective(x)
-    grad: ndarray = make_grad(x)
-    grad_infnorm = numpy.max(numpy.abs(grad))
+
+    fval: float
+    grad: ndarray
+    grad_infnorm: float
+    H: ndarray
+    constraints: Tuple[ndarray, ndarray, ndarray, ndarray]
+
+    fval = objective(x)
+    grad, grad_infnorm, H, constraints = get_info(x, iter, numpy.inf, 0.0)
+    output(iter, fval, numpy.nan, grad_infnorm, None, None, H)
+
     init_grad_infnorm = grad_infnorm
-    H = findiff.findiff(gradient, x, constr_A, constr_b, constr_lb, constr_ub)
-    H = (H.T + H) / 2
-    constraints = constr_A, constr_b - constr_A @ x, constr_lb - x, constr_ub - x
-
     while True:
-        if opts.format is not None:
-            print(
-                opts.format(
-                    iter=iter,
-                    fval=fval,
-                    step=step_size,
-                    grad=grad_infnorm,
-                    CGiter=pcg_iter,
-                    CGexit=opts.CGexit(exit_flag),
-                    posdef=opts.posdef(H),
-                )
-            )
-
+        # 失败情形的截止条件放在最前是因为pcg失败时的continue会导致后面代码被跳过
         if delta < opts.tol_step:  # 信赖域太小
+            return Trust_Region_Result(x, iter, grad, success=False)  # pragma: no cover
+        if iter > opts.max_iter:  # 迭代次数超过要求
             return Trust_Region_Result(x, iter, grad, success=False)  # pragma: no cover
 
         # PCG
         step: Optional[ndarray]
         qpval: Optional[float]
+        pcg_iter: int
+        exit_flag: pcg.PCG_EXIT_FLAG
         step, qpval, pcg_iter, exit_flag = pcg.pcg(grad, H, constraints, delta)
         iter += 1
 
         if step is None:
             delta /= 4.0
+            output(iter, fval, numpy.nan, grad_infnorm, pcg_iter, exit_flag, H)
             continue
 
         assert qpval is not None
-        step_size = numpy.linalg.norm(step)  # type: ignore
 
-        # 试探更新自变量
-        new_x = x + step
-
-        # 对通过约束检查的自变量进行函数求值
-        new_fval = objective(new_x)
+        # 更新步长、试探点、试探函数值
+        step_size: float = float(numpy.linalg.norm(step))  # type: ignore
+        new_x: ndarray = x + step
+        new_fval: float = objective(new_x)
 
         # 根据下降率确定信赖域缩放
         reduce: float = new_fval - fval
@@ -213,19 +229,14 @@ def trust_region(
 
         # 对符合下降要求的候选点进行更新
         if new_fval < fval:
-            x, fval, grad = new_x, new_fval, make_grad(new_x)
-            grad_infnorm = numpy.max(numpy.abs(grad))
-            H = findiff.findiff(gradient, x, constr_A, constr_b, constr_lb, constr_ub)
-            H = (H.T + H) / 2
-            constraints = (
-                constr_A,
-                constr_b - constr_A @ x,
-                constr_lb - x,
-                constr_ub - x,
+            x, fval = new_x, new_fval
+            grad, grad_infnorm, H, constraints = get_info(
+                x, iter, grad_infnorm, init_grad_infnorm
             )
 
+        output(iter, fval, step_size, grad_infnorm, pcg_iter, exit_flag, H)
+
         # 成功收敛准则
-        assert exit_flag is not None
         if exit_flag == pcg.PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE:  # PCG正定收敛
             if grad_infnorm < opts.tol_grad:  # 梯度足够小
                 return Trust_Region_Result(x, iter, grad, success=True)
@@ -233,6 +244,3 @@ def trust_region(
                 return Trust_Region_Result(
                     x, iter, grad, success=True
                 )  # pragma: no cover
-
-        if iter > opts.max_iter:  # 迭代次数超过要求
-            return Trust_Region_Result(x, iter, grad, success=False)  # pragma: no cover
