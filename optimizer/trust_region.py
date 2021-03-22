@@ -11,6 +11,21 @@ from overloads.shortcuts import assertNoInfNaN
 
 from optimizer import pcg
 
+Trust_Region_Format_T = Optional[
+    Callable[
+        [
+            NamedArg(int, "iter"),
+            NamedArg(float, "fval"),  # noqa: F821
+            NamedArg(float, "step"),  # noqa: F821
+            NamedArg(float, "grad"),  # noqa: F821
+            NamedArg(float, "CGiter"),  # noqa: F821
+            NamedArg(str, "CGexit"),  # noqa: F821
+            NamedArg(str, "posdef"),  # noqa: F821
+        ],
+        Optional[str],
+    ]
+]
+
 
 class Grad_Check_Failed(BaseException):
     checker: Optional[Callable[[ndarray, ndarray], float]]
@@ -36,20 +51,7 @@ class Trust_Region_Options:
     check_rel: float = 1.0e-2
     check_abs: Optional[float] = None
     check_iter: Optional[int] = None
-    format: Optional[
-        Callable[
-            [
-                NamedArg(int, "iter"),
-                NamedArg(float, "fval"),  # noqa: F821
-                NamedArg(float, "step"),  # noqa: F821
-                NamedArg(float, "grad"),  # noqa: F821
-                NamedArg(float, "CGiter"),  # noqa: F821
-                NamedArg(str, "CGexit"),  # noqa: F821
-                NamedArg(str, "posdef"),  # noqa: F821
-            ],
-            Optional[str],
-        ]
-    ]
+    format: Trust_Region_Format_T
     posdef: Optional[Callable[[ndarray], str]]
 
     def __init__(self, *, max_iter: int) -> None:
