@@ -47,7 +47,7 @@ class Trust_Region_Options:
                 NamedArg(str, "CGexit"),  # noqa: F821
                 NamedArg(str, "posdef"),  # noqa: F821
             ],
-            str,
+            Optional[str],
         ]
     ]
     posdef: Optional[Callable[[ndarray], str]]
@@ -132,17 +132,17 @@ def trust_region(
         hessian: ndarray,
     ) -> None:
         if opts.format is not None:
-            print(
-                opts.format(
-                    iter=iter,
-                    fval=fval,
-                    step=step_size,
-                    grad=grad_infnorm,
-                    CGiter=CGiter if CGiter is not None else 0,
-                    CGexit=CGexit.name if CGexit is not None else "None",
-                    posdef=opts.posdef(hessian) if opts.posdef is not None else "",
-                )
+            output = opts.format(
+                iter=iter,
+                fval=fval,
+                step=step_size,
+                grad=grad_infnorm,
+                CGiter=CGiter if CGiter is not None else 0,
+                CGexit=CGexit.name if CGexit is not None else "None",
+                posdef=opts.posdef(hessian) if opts.posdef is not None else "",
             )
+            if output is not None:
+                print(output)
 
     def make_grad(
         x: ndarray, iter: int, grad_infnorm: float, init_grad_infnorm: float
