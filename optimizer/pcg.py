@@ -193,7 +193,8 @@ def pcg(
     def make_valid_gradient(
         exit_flag: PCG_EXIT_FLAG,
     ) -> Tuple[Optional[ndarray], PCG_EXIT_FLAG]:
-        p = -g
+        assert iter == 0
+        p = direct  # 使用二阶信息缩小变化太快的维度上的梯度
         norm_p = float(numpy.linalg.norm(p))  # type: ignore
         if norm_p > 0:
             p /= norm_p
@@ -222,7 +223,8 @@ def pcg(
 
     def make_valid_optimal(
         exit_flag: PCG_EXIT_FLAG,
-    ) -> Tuple[Optional[ndarray], PCG_EXIT_FLAG]:
+    ) -> Tuple[ndarray, PCG_EXIT_FLAG]:
+        assert exit_flag == PCG_EXIT_FLAG.OUT_OF_TRUST_REGION
         nonlocal direct, iter
         (n,) = p.shape
         norm_d = float(numpy.linalg.norm(direct))  # type: ignore
@@ -236,9 +238,7 @@ def pcg(
             iter += 1
             return p_new, exit_flag
         p_new.shape = (n,)
-        if iter > 0:
-            return p, exit_flag
-        return make_valid_gradient(exit_flag)
+        return p, exit_flag
 
     # 残差收敛：对迭代成功和失败均适用
     if exit_flag == PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE:
@@ -254,8 +254,12 @@ def pcg(
 
     # 超出信赖域：迭代成功时前进，迭代失败时返回裁剪梯度
     if exit_flag == PCG_EXIT_FLAG.OUT_OF_TRUST_REGION:
-        p_clip, exit_flag = make_valid_optimal(exit_flag)
-        return p_clip, qpval(p_clip), iter, exit_flag
+        if iter > 0:
+            p_clip, exit_flag = make_valid_optimal(exit_flag)
+            return p_clip, qpval(p_clip), iter, exit_flag
+        else:
+            p_clip, exit_flag = make_valid_gradient(exit_flag)
+            return p_clip, qpval(p_clip), iter, exit_flag
 
     # 违反约束：迭代成功时不再前进，迭代失败时返回裁剪梯度
     if exit_flag == PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS:
