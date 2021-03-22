@@ -175,13 +175,21 @@ def trust_region(
 
     def get_info(
         x: ndarray, iter: int, grad_infnorm: float, init_grad_infnorm: float
-    ) -> Tuple[ndarray, float, ndarray, Tuple[ndarray, ndarray, ndarray, ndarray]]:
-        grad = make_grad(x, iter, grad_infnorm, init_grad_infnorm)
-        grad_infnorm = numpy.max(numpy.abs(grad))
+    ) -> Tuple[ndarray, float, Tuple[ndarray, ndarray, ndarray, ndarray]]:
+        new_grad = make_grad(x, iter, grad_infnorm, init_grad_infnorm)
+        grad_infnorm = numpy.max(numpy.abs(new_grad))
+        constraints = (constr_A, constr_b - constr_A @ x, constr_lb - x, constr_ub - x)
+        return new_grad, grad_infnorm, constraints
+
+    _hess_is_up_to_date: bool = False
+
+    def make_hess(x: ndarray) -> ndarray:
+        nonlocal _hess_is_up_to_date
+        assert not _hess_is_up_to_date
         H = findiff.findiff(gradient, x, constr_A, constr_b, constr_lb, constr_ub)
         H = (H.T + H) / 2.0
-        constraints = (constr_A, constr_b - constr_A @ x, constr_lb - x, constr_ub - x)
-        return grad, grad_infnorm, H, constraints
+        _hess_is_up_to_date = True
+        return H
 
     iter: int = 0
     delta: float = opts.init_delta
@@ -194,7 +202,8 @@ def trust_region(
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray]
 
     fval = objective(x)
-    grad, grad_infnorm, H, constraints = get_info(x, iter, numpy.inf, 0.0)
+    grad, grad_infnorm, constraints = get_info(x, iter, numpy.inf, 0.0)
+    H = make_hess(x)
     output(iter, fval, numpy.nan, grad_infnorm, None, None, H)
 
     init_grad_infnorm = grad_infnorm
@@ -218,7 +227,10 @@ def trust_region(
         iter += 1
 
         if step is None:
-            delta /= 4.0
+            if _hess_is_up_to_date:
+                delta /= 4.0
+            else:
+                H = make_hess(x)
             output(iter, fval, numpy.nan, grad_infnorm, pcg_iter, exit_flag, H)
             continue
 
@@ -235,12 +247,15 @@ def trust_region(
         if ratio >= 0.75 and step_size >= 0.9 * delta:
             delta *= 2
         elif ratio <= 0.25:
-            delta = step_size / 4.0
+            if _hess_is_up_to_date:
+                delta = step_size / 4.0
+            else:
+                H = make_hess(x)
 
         # 对符合下降要求的候选点进行更新
         if new_fval < fval:
-            x, fval = new_x, new_fval
-            grad, grad_infnorm, H, constraints = get_info(
+            x, fval, _hess_is_up_to_date = new_x, new_fval, False
+            grad, grad_infnorm, constraints = get_info(
                 x, iter, grad_infnorm, init_grad_infnorm
             )
 
