@@ -187,6 +187,7 @@ def trust_region(
 
     def make_hess(x: ndarray) -> ndarray:
         nonlocal _hess_is_up_to_date, shaking
+        assert not _hess_is_up_to_date
         H = findiff.findiff(gradient, x, constr_A, constr_b, constr_lb, constr_ub)
         H = (H.T + H) / 2.0
         _hess_is_up_to_date = True
