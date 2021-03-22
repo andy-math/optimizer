@@ -190,7 +190,9 @@ def pcg(
     exit_flag: PCG_EXIT_FLAG
     p, direct, iter, exit_flag = _impl(g, H, constraints, delta)
 
-    def make_valid_gradient() -> Tuple[Optional[ndarray], bool]:
+    def make_valid_gradient(
+        exit_flag: PCG_EXIT_FLAG,
+    ) -> Tuple[Optional[ndarray], PCG_EXIT_FLAG]:
         p = -g
         norm_p = float(numpy.linalg.norm(p))  # type: ignore
         if norm_p > 0:
@@ -212,31 +214,31 @@ def pcg(
                 break
         p.shape = (n, 1)
         if numpy.all(eliminated) or not check(p, *constraints):
-            return None, True
+            return None, PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS
         p.shape = (n,)
-        return p, bool(numpy.any(eliminated))  # type: ignore
+        if bool(numpy.any(eliminated)):  # type: ignore
+            return p, PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS
+        return p, exit_flag
 
     def make_valid_optimal(
         exit_flag: PCG_EXIT_FLAG,
     ) -> Tuple[Optional[ndarray], PCG_EXIT_FLAG]:
-        nonlocal direct
+        nonlocal direct, iter
         (n,) = p.shape
-        if iter > 0:
-            norm_d = float(numpy.linalg.norm(direct))  # type: ignore
-            if norm_d > 0:
-                direct /= norm_d
-            distance = float(numpy.sqrt(delta * delta - p.T @ p))  # 勾股定理
-            p_new = p + distance * direct
-            p_new.shape = (n, 1)
-            if not check(p_new, *constraints):
-                return p, PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS  # pragma: no cover
+        norm_d = float(numpy.linalg.norm(direct))  # type: ignore
+        if norm_d > 0:
+            direct /= norm_d
+        distance = float(numpy.sqrt(delta * delta - p.T @ p))  # 勾股定理
+        p_new = p + distance * direct
+        p_new.shape = (n, 1)
+        if check(p_new, *constraints):
             p_new.shape = (n,)
+            iter += 1
             return p_new, exit_flag
-        else:
-            p_grad, violated = make_valid_gradient()
-            if violated:
-                return p_grad, PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS
-            return p_grad, exit_flag
+        p_new.shape = (n,)
+        if iter > 0:
+            return p, exit_flag
+        return make_valid_gradient(exit_flag)
 
     # 残差收敛：对迭代成功和失败均适用
     if exit_flag == PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE:
@@ -247,7 +249,7 @@ def pcg(
         if iter > 0:
             return p, qpval(p), iter, exit_flag  # pragma: no cover
         else:
-            p_clip, exit_flag = make_valid_optimal(exit_flag)
+            p_clip, exit_flag = make_valid_gradient(exit_flag)
             return p_clip, qpval(p_clip), iter, exit_flag
 
     # 超出信赖域：迭代成功时前进，迭代失败时返回裁剪梯度
@@ -260,7 +262,7 @@ def pcg(
         if iter > 0:
             return p, qpval(p), iter, exit_flag  # pragma: no cover
         else:
-            p_clip, exit_flag = make_valid_optimal(exit_flag)
+            p_clip, exit_flag = make_valid_gradient(exit_flag)
             return p_clip, qpval(p_clip), iter, exit_flag
 
     # 其它情形：不应存在
