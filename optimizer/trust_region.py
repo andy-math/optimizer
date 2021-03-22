@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from typing import Callable, Optional, Tuple
+from typing import Callable, Literal, Optional, Tuple, Union
 
 import numpy
 from mypy_extensions import NamedArg
@@ -51,6 +51,7 @@ class Trust_Region_Options:
     check_rel: float = 1.0e-2
     check_abs: Optional[float] = None
     check_iter: Optional[int] = None
+    shaking: Union[Literal["x.shape[0]"], int] = "x.shape[0]"
     format: Trust_Region_Format_T
     posdef: Optional[Callable[[ndarray], str]]
 
@@ -182,13 +183,14 @@ def trust_region(
         return new_grad, grad_infnorm, constraints
 
     _hess_is_up_to_date: bool = False
+    shaking: int = 0
 
     def make_hess(x: ndarray) -> ndarray:
-        nonlocal _hess_is_up_to_date
-        assert not _hess_is_up_to_date
+        nonlocal _hess_is_up_to_date, shaking
         H = findiff.findiff(gradient, x, constr_A, constr_b, constr_lb, constr_ub)
         H = (H.T + H) / 2.0
         _hess_is_up_to_date = True
+        shaking = x.shape[0] if opts.shaking == "x.shape[0]" else opts.shaking
         return H
 
     iter: int = 0
@@ -224,7 +226,10 @@ def trust_region(
         pcg_iter: int
         exit_flag: pcg.PCG_EXIT_FLAG
         step, qpval, pcg_iter, exit_flag = pcg.pcg(grad, H, constraints, delta)
-        iter += 1
+        iter, shaking = iter + 1, shaking - 1
+
+        if shaking <= 0 and not _hess_is_up_to_date:
+            H = make_hess(x)
 
         if step is None:
             if _hess_is_up_to_date:
