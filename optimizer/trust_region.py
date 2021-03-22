@@ -61,12 +61,16 @@ class Trust_Region_Options:
 class Trust_Region_Result:
     x: ndarray
     iter: int
+    delta: float
     gradient: ndarray
     success: bool
 
-    def __init__(self, x: ndarray, iter: int, grad: ndarray, *, success: bool) -> None:
+    def __init__(
+        self, x: ndarray, iter: int, delta: float, grad: ndarray, *, success: bool
+    ) -> None:
         self.x = x
         self.iter = iter
+        self.delta = delta
         self.gradient = grad
         self.success = success
 
@@ -195,9 +199,13 @@ def trust_region(
     while True:
         # 失败情形的截止条件放在最前是因为pcg失败时的continue会导致后面代码被跳过
         if delta < opts.tol_step:  # 信赖域太小
-            return Trust_Region_Result(x, iter, grad, success=False)  # pragma: no cover
+            return Trust_Region_Result(
+                x, iter, delta, grad, success=False
+            )  # pragma: no cover
         if iter > opts.max_iter:  # 迭代次数超过要求
-            return Trust_Region_Result(x, iter, grad, success=False)  # pragma: no cover
+            return Trust_Region_Result(
+                x, iter, delta, grad, success=False
+            )  # pragma: no cover
 
         # PCG
         step: Optional[ndarray]
@@ -239,8 +247,8 @@ def trust_region(
         # 成功收敛准则
         if exit_flag == pcg.PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE:  # PCG正定收敛
             if grad_infnorm < opts.tol_grad:  # 梯度足够小
-                return Trust_Region_Result(x, iter, grad, success=True)
+                return Trust_Region_Result(x, iter, delta, grad, success=True)
             if step_size < opts.tol_step:  # 步长足够小
                 return Trust_Region_Result(
-                    x, iter, grad, success=True
+                    x, iter, delta, grad, success=True
                 )  # pragma: no cover
