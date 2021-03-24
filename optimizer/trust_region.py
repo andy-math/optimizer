@@ -269,9 +269,12 @@ def trust_region(
 
         # 成功收敛准则
         if exit_flag == pcg.PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE:  # PCG正定收敛
-            if grad_infnorm < opts.tol_grad:  # 梯度足够小
-                return Trust_Region_Result(x, iter, delta, grad, success=True)
-            if step_size < opts.tol_step:  # 步长足够小
-                return Trust_Region_Result(
-                    x, iter, delta, grad, success=True
-                )  # pragma: no cover
+            if _hess_is_up_to_date:
+                if grad_infnorm < opts.tol_grad:  # 梯度足够小
+                    return Trust_Region_Result(x, iter, delta, grad, success=True)
+                if step_size < opts.tol_step:  # 步长足够小
+                    return Trust_Region_Result(
+                        x, iter, delta, grad, success=True
+                    )  # pragma: no cover
+            else:
+                H = make_hess(x)
