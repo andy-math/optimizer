@@ -205,16 +205,18 @@ def pcg(
         while True:
             index: numpy.ndarray[numpy.bool_]
             index = numpy.logical_or(p < lb, ub < p)  # type: ignore
-            p[index] = 0.0
             eliminated[index] = True
+            p[eliminated] /= 2.0
             norm_p = float(numpy.linalg.norm(p))  # type: ignore
             if norm_p > 0:
                 p /= norm_p
             p = p * delta
             if numpy.all(numpy.logical_and(lb <= p, p <= ub)):  # type: ignore
                 break
+            if numpy.all(eliminated):
+                return None, PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS
         p.shape = (n, 1)
-        if numpy.all(eliminated) or not check(p, *constraints):
+        if not check(p, *constraints):
             return None, PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS
         p.shape = (n,)
         if bool(numpy.any(eliminated)):  # type: ignore
