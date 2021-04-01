@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from typing import Callable, Literal, Optional, Tuple, Union
+from typing import Callable, Dict, List, Literal, Optional, Tuple, Union
 
 import numpy
 from mypy_extensions import NamedArg
@@ -18,9 +18,10 @@ Trust_Region_Format_T = Optional[
             NamedArg(float, "fval"),  # noqa: F821
             NamedArg(float, "step"),  # noqa: F821
             NamedArg(float, "grad"),  # noqa: F821
-            NamedArg(float, "CGiter"),  # noqa: F821
+            NamedArg(int, "CGiter"),  # noqa: F821
             NamedArg(str, "CGexit"),  # noqa: F821
             NamedArg(str, "posdef"),  # noqa: F821
+            NamedArg(Literal["Shaking", "       "], "shaking"),  # noqa: F821
         ],
         Optional[str],
     ]
@@ -43,9 +44,54 @@ class Grad_Check_Failed(BaseException):
         self.findiff_ = findiff_
 
 
+_default_format_times: int = 0
+_default_format_width: Dict[str, int] = {}
+
+
+def default_format(
+    *,
+    iter: int,
+    fval: float,
+    step: float,
+    grad: float,
+    CGiter: int,
+    CGexit: str,
+    posdef: str,
+    shaking: Literal["Shaking", "       "],
+) -> str:
+    global _default_format_width, _default_format_times
+    data = {
+        "Iter": f"{iter: 5d}",
+        "F-Val": f"{fval: 10.8g}",
+        "Step": f"{step:13.6g}",
+        "Grad": f"{grad:6.4g}",
+        "CG": f"{CGiter:2d}",
+        "CG Exit": CGexit,
+        "is Posdef": posdef,
+        "Hessian": shaking,
+    }
+    output: List[str] = []
+    for k, v in data.items():
+        _width = _default_format_width.get(k, 0)
+        _width = max(_width, max(len(k), len(v)))
+        output.append(" " * (_width - len(v)) + v)
+        _default_format_width[k] = _width
+    _output = "  ".join(output)
+    if _default_format_times % 20 == 0:
+        label: List[str] = []
+        for k in data:
+            _width = _default_format_width[k]
+            label.append(" " * (_width - len(k)) + k)
+        _output = "\n" + "  ".join(label) + "\n\n" + _output
+    _default_format_times += 1
+    return _output
+
+
 class Trust_Region_Options:
     tol_step: float = 1.0e-10
     tol_grad: float = 1.0e-6
+    abstol_fval: Optional[float] = None
+    max_stall_iter: Optional[int] = None
     init_delta: float = 1.0
     max_iter: int
     check_rel: float = 1.0e-2
@@ -57,7 +103,7 @@ class Trust_Region_Options:
 
     def __init__(self, *, max_iter: int) -> None:
         self.max_iter = max_iter
-        self.format = "iter = {iter: 5d}, fval = {fval: 13.6g}, step = {step: 13.6g}, grad = {grad: 12.3g}, CG = {CGiter: 2d}, {CGexit} {posdef}".format  # noqa: E501
+        self.format = default_format
         self.posdef = lambda H: "-*- ill -*-" if not isposdef(H) else ""
 
 
@@ -126,6 +172,11 @@ def trust_region(
     constr_ub: ndarray,
     opts: Trust_Region_Options,
 ) -> Trust_Region_Result:
+
+    _hess_is_up_to_date: bool = False
+    _hess_shaked: bool = False
+    shaking: int = 0
+
     def objective_ndarray(x: ndarray) -> ndarray:
         return numpy.array([objective(x)])
 
@@ -138,6 +189,7 @@ def trust_region(
         CGexit: Optional[pcg.PCG_EXIT_FLAG],
         hessian: ndarray,
     ) -> None:
+        nonlocal _hess_shaked
         if opts.format is not None:
             output = opts.format(
                 iter=iter,
@@ -147,9 +199,11 @@ def trust_region(
                 CGiter=CGiter if CGiter is not None else 0,
                 CGexit=CGexit.name if CGexit is not None else "None",
                 posdef=opts.posdef(hessian) if opts.posdef is not None else "",
+                shaking="Shaking" if _hess_shaked else "       ",
             )
             if output is not None:
                 print(output)
+        _hess_shaked = False
 
     def make_grad(
         x: ndarray, iter: int, grad_infnorm: float, init_grad_infnorm: float
@@ -182,15 +236,12 @@ def trust_region(
         constraints = (constr_A, constr_b - constr_A @ x, constr_lb - x, constr_ub - x)
         return new_grad, grad_infnorm, constraints
 
-    _hess_is_up_to_date: bool = False
-    shaking: int = 0
-
     def make_hess(x: ndarray) -> ndarray:
-        nonlocal _hess_is_up_to_date, shaking
+        nonlocal _hess_is_up_to_date, shaking, _hess_shaked
         assert not _hess_is_up_to_date
         H = findiff.findiff(gradient, x, constr_A, constr_b, constr_lb, constr_ub)
         H = (H.T + H) / 2.0
-        _hess_is_up_to_date = True
+        _hess_is_up_to_date, _hess_shaked = True, True
         shaking = x.shape[0] if opts.shaking == "x.shape[0]" else opts.shaking
         return H
 
@@ -210,6 +261,7 @@ def trust_region(
     output(iter, fval, numpy.nan, grad_infnorm, None, None, H)
 
     init_grad_infnorm = grad_infnorm
+    old_fval, stall_iter = fval, 0
     while True:
         # 失败情形的截止条件放在最前是因为pcg失败时的continue会导致后面代码被跳过
         if delta < opts.tol_step:  # 信赖域太小
@@ -264,6 +316,10 @@ def trust_region(
             grad, grad_infnorm, constraints = get_info(
                 x, iter, grad_infnorm, init_grad_infnorm
             )
+            if opts.abstol_fval is not None and old_fval - fval < opts.abstol_fval:
+                stall_iter += 1
+            else:
+                old_fval, stall_iter = fval, 0
 
         output(iter, fval, step_size, grad_infnorm, pcg_iter, exit_flag, H)
 
@@ -273,8 +329,12 @@ def trust_region(
                 if grad_infnorm < opts.tol_grad:  # 梯度足够小
                     return Trust_Region_Result(x, iter, delta, grad, success=True)
                 if step_size < opts.tol_step:  # 步长足够小
-                    return Trust_Region_Result(
-                        x, iter, delta, grad, success=True
-                    )  # pragma: no cover
+                    return Trust_Region_Result(x, iter, delta, grad, success=True)
+            else:
+                H = make_hess(x)
+
+        if opts.max_stall_iter is not None and stall_iter >= opts.max_stall_iter:
+            if _hess_is_up_to_date:
+                return Trust_Region_Result(x, iter, delta, grad, success=True)
             else:
                 H = make_hess(x)
