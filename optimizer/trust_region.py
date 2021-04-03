@@ -29,16 +29,19 @@ Trust_Region_Format_T = Optional[
 
 
 class Grad_Check_Failed(BaseException):
+    iter: int
     checker: Optional[Callable[[ndarray, ndarray], float]]
     analytic: ndarray
     findiff_: ndarray
 
     def __init__(
         self,
+        iter: int,
         checker: Callable[[ndarray, ndarray], float],
         analytic: ndarray,
         findiff_: ndarray,
     ) -> None:
+        self.iter = iter
         self.checker = checker
         self.analytic = analytic
         self.findiff_ = findiff_
@@ -222,10 +225,10 @@ def trust_region(
         findiff_.shape = (findiff_.shape[1],)
 
         if difference.relative(analytic, findiff_) > opts.check_rel:
-            raise Grad_Check_Failed(difference.relative, analytic, findiff_)
+            raise Grad_Check_Failed(iter, difference.relative, analytic, findiff_)
         if opts.check_abs is not None:
             if difference.absolute(analytic, findiff_) > opts.check_abs:
-                raise Grad_Check_Failed(difference.absolute, analytic, findiff_)
+                raise Grad_Check_Failed(iter, difference.absolute, analytic, findiff_)
         return analytic
 
     def get_info(
