@@ -25,6 +25,7 @@ class Test_banana:
         constr_ub = numpy.full((n,), numpy.inf)
 
         opts = trust_region.Trust_Region_Options(max_iter=500)
+        opts.shaking = -1
         result = trust_region.trust_region(
             func,
             grad,
@@ -37,7 +38,7 @@ class Test_banana:
         )
         assert result.success
         assert numpy.all(numpy.round(result.x, 2) == 1)
-        assert 10 < result.iter < 500
+        assert 27 < result.iter < 33
 
 
 if __name__ == "__main__":

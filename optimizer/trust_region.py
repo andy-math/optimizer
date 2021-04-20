@@ -276,6 +276,9 @@ def trust_region(
                 x, iter, delta, grad, success=False
             )  # pragma: no cover
 
+        if shaking <= 0 and not _hess_is_up_to_date:
+            H = make_hess(x)
+
         # PCG
         step: Optional[ndarray]
         qpval: Optional[float]
@@ -283,9 +286,6 @@ def trust_region(
         exit_flag: pcg.PCG_EXIT_FLAG
         step, qpval, pcg_iter, exit_flag = pcg.pcg(grad, H, constraints, delta)
         iter, shaking = iter + 1, shaking - 1
-
-        if shaking <= 0 and not _hess_is_up_to_date:
-            H = make_hess(x)
 
         if step is None:
             if _hess_is_up_to_date:
