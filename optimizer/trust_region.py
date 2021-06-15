@@ -175,9 +175,6 @@ def trust_region(
     constr_ub: ndarray,
     opts: Trust_Region_Options,
 ) -> Trust_Region_Result:
-    assert (
-        opts.check_iter is None or opts.check_iter >= 0
-    ), "`opts.check_iter`不能为负数。若要完全关闭检查，请使用None。使用0则表示只在最优化开始前进行一次梯度检查。"
 
     _hess_is_up_to_date: bool = False
     _hess_shaked: bool = False
