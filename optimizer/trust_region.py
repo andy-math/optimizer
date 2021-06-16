@@ -91,6 +91,7 @@ def default_format(
 
 
 class Trust_Region_Options:
+    border_abstol: Optional[float] = None
     tol_step: float = 1.0e-10
     tol_grad: float = 1.0e-6
     abstol_fval: Optional[float] = None
@@ -183,6 +184,12 @@ def trust_region(
     def objective_ndarray(x: ndarray) -> ndarray:
         return numpy.array([objective(x)])
 
+    def grad_patch(x: ndarray, g: ndarray) -> ndarray:
+        if opts.border_abstol is not None:
+            g[numpy.logical_and(x - constr_lb < opts.border_abstol, g > 0)] = 0.0
+            g[numpy.logical_and(constr_ub - x < opts.border_abstol, g < 0)] = 0.0
+        return g
+
     def output(
         iter: int,
         fval: float,
@@ -212,24 +219,28 @@ def trust_region(
         x: ndarray, iter: int, grad_infnorm: float, init_grad_infnorm: float
     ) -> ndarray:
         analytic = gradient(x)
-        if opts.check_abs is None:
-            if opts.check_iter is not None and iter > opts.check_iter:
-                return analytic  # pragma: no cover
-            if grad_infnorm < init_grad_infnorm * opts.check_rel:
-                return analytic
+        while True:
+            if opts.check_abs is None:
+                if opts.check_iter is not None and iter > opts.check_iter:
+                    break
+                if grad_infnorm < init_grad_infnorm * opts.check_rel:
+                    break
 
-        findiff_ = findiff.findiff(
-            objective_ndarray, x, constr_A, constr_b, constr_lb, constr_ub
-        )
-        assert len(findiff_.shape) == 2 and findiff_.shape[0] == 1
-        findiff_.shape = (findiff_.shape[1],)
+            findiff_ = findiff.findiff(
+                objective_ndarray, x, constr_A, constr_b, constr_lb, constr_ub
+            )
+            assert len(findiff_.shape) == 2 and findiff_.shape[0] == 1
+            findiff_.shape = (findiff_.shape[1],)
 
-        if difference.relative(analytic, findiff_) > opts.check_rel:
-            raise Grad_Check_Failed(iter, difference.relative, analytic, findiff_)
-        if opts.check_abs is not None:
-            if difference.absolute(analytic, findiff_) > opts.check_abs:
-                raise Grad_Check_Failed(iter, difference.absolute, analytic, findiff_)
-        return analytic
+            if difference.relative(analytic, findiff_) > opts.check_rel:
+                raise Grad_Check_Failed(iter, difference.relative, analytic, findiff_)
+            if opts.check_abs is not None:
+                if difference.absolute(analytic, findiff_) > opts.check_abs:
+                    raise Grad_Check_Failed(
+                        iter, difference.absolute, analytic, findiff_
+                    )
+            break
+        return grad_patch(x, analytic)
 
     def get_info(
         x: ndarray, iter: int, grad_infnorm: float, init_grad_infnorm: float
@@ -242,7 +253,14 @@ def trust_region(
     def make_hess(x: ndarray) -> ndarray:
         nonlocal _hess_is_up_to_date, shaking, _hess_shaked
         assert not _hess_is_up_to_date
-        H = findiff.findiff(gradient, x, constr_A, constr_b, constr_lb, constr_ub)
+        H = findiff.findiff(
+            lambda x: grad_patch(x, gradient(x)),
+            x,
+            constr_A,
+            constr_b,
+            constr_lb,
+            constr_ub,
+        )
         H = (H.T + H) / 2.0
         _hess_is_up_to_date, _hess_shaked = True, True
         shaking = x.shape[0] if opts.shaking == "x.shape[0]" else opts.shaking
