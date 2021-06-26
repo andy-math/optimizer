@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from typing import Callable, Dict, List, Literal, Optional, Tuple, Union
+from typing import Callable, Dict, List, Literal, NamedTuple, Optional, Tuple, Union
 
 import numpy
 from mypy_extensions import NamedArg
@@ -111,21 +111,12 @@ class Trust_Region_Options:
         self.posdef = lambda H: "-*- ill -*-" if not isposdef(H) else ""
 
 
-class Trust_Region_Result:
+class Trust_Region_Result(NamedTuple):
     x: ndarray
     iter: int
     delta: float
     gradient: ndarray
     success: bool
-
-    def __init__(
-        self, x: ndarray, iter: int, delta: float, grad: ndarray, *, success: bool
-    ) -> None:
-        self.x = x
-        self.iter = iter
-        self.delta = delta
-        self.gradient = grad
-        self.success = success
 
 
 def _input_check(
