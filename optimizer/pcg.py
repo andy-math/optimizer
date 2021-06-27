@@ -107,14 +107,10 @@ def _impl(
 
     inner1: float = float(r.T @ z)
 
-    for iter in range(n + 1):
+    for iter in range(n):
         # 残差收敛性检查
         if numpy.max(numpy.abs(z)) < numpy.sqrt(_eps):
             return (p, direct, iter, PCG_Flag.RESIDUAL_CONVERGENCE)
-
-        # 残差始终不收敛则是hessian矩阵病态，适用于非正定-负曲率情形
-        if iter == n:
-            return (p, direct, iter, PCG_Flag.NEGATIVE_CURVATURE)  # pragma: no cover
 
         # 负曲率检查
         ww: ndarray = H @ direct
