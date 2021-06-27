@@ -236,18 +236,14 @@ def _best_policy(
     )
     ret0 = PCG_Status(_p0, fval(_p0), 0, _exit0)
 
-    _p1: Optional[ndarray]
     _p1, _direct, _iter, _exit1 = _implimentation(g, H, R, constraints, delta)
-    if not _iter and _exit1 != PCG_Flag.RESIDUAL_CONVERGENCE:
-        _p1 = None
     ret1 = PCG_Status(_p1, fval(_p1), _iter, _exit1)
 
     if _exit1 == PCG_Flag.RESIDUAL_CONVERGENCE:
         assert _direct is None
     else:
         assert _direct is not None
-        if _p1 is not None:
-            _p2, _exit2 = subspace_decay(g, H, _p1, _direct, delta, constraints, _exit1)
-            ret2 = PCG_Status(_p2, fval(_p2), _iter, _exit2)
-            ret1 = _best_status(ret1, ret2)
+        _p2, _exit2 = subspace_decay(g, H, _p1, _direct, delta, constraints, _exit1)
+        ret2 = PCG_Status(_p2, fval(_p2), _iter, _exit2)
+        ret1 = _best_status(ret1, ret2)
     return _best_status(ret1, ret0)
