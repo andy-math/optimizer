@@ -178,14 +178,7 @@ nConstraints = dyn_typing.SizeVar()
         ),
         dyn_typing.Float(),
     ),
-    output=dyn_typing.Tuple(
-        (
-            dyn_typing.Optional(dyn_typing.NDArray(numpy.float64, (N,))),
-            dyn_typing.Optional(dyn_typing.Float()),
-            dyn_typing.Int(),
-            dyn_typing.Class(PCG_Flag),
-        )
-    ),
+    output=dyn_typing.Class(PCG_Status),
 )
 @bind_checker.bind_checker_4(input=_input_check, output=_pcg_output_check)
 def pcg(
