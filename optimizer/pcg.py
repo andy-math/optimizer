@@ -147,7 +147,7 @@ def _impl(
 
     if numpy.max(numpy.abs(z)) < numpy.sqrt(_eps):
         return (p, direct, iter, PCG_Flag.RESIDUAL_CONVERGENCE)
-        
+
     assert False  # pragma: no cover
 
 
