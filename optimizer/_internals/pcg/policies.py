@@ -20,7 +20,7 @@ def subspace_decay(
     # 尝试对前进方向归一化，如果前进方向异常，直接返回base，啥也不做
     norm = math.sqrt(float(direct @ direct))
     if norm > 0:
-        direct /= norm
+        direct = direct / norm
     else:
         return base, exit_flag
 
@@ -35,7 +35,7 @@ def subspace_decay(
         # 尝试归一化，如果折半衰减后还有可观测模长的话
         norm = math.sqrt(float(direct @ direct))
         if norm > 0:
-            direct /= norm
+            direct = direct / norm
         # 重新缩放到小圆信赖域
         direct = direct * delta
         # 如果满足全部在界内，那么退出折半衰减
@@ -45,15 +45,16 @@ def subspace_decay(
         if numpy.all(eliminated):
             break
 
+    base = base + direct
     # 如果折半衰减后不满足约束，放弃，返回None
-    direct.shape = (direct.shape[0], 1)
-    if not check(base + direct, constraints):
+    base.shape = (base.shape[0], 1)
+    if not check(base, constraints):
         return None, PCG_Flag.VIOLATE_CONSTRAINTS
-    direct.shape = (direct.shape[0],)
+    base.shape = (base.shape[0],)
 
     # 如果满足了约束，曾经衰减过，那么替换flag为“越界”
     if bool(numpy.any(eliminated)):
-        return base + direct, PCG_Flag.VIOLATE_CONSTRAINTS
+        return base, PCG_Flag.VIOLATE_CONSTRAINTS
 
     # 否则返回预期的前进
-    return base + direct, exit_flag
+    return base, exit_flag
