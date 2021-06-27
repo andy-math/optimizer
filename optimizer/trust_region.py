@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from typing import Callable, Final, NamedTuple, Tuple
+
+from typing import Callable, Final, NamedTuple, Optional, Tuple
 
 import numpy
 from numerical import linneq
@@ -118,11 +119,13 @@ def trust_region(
 
     options.output(iter, fval, grad.infnorm, None, hessian.H, opts, hessian.times)
 
+    ratio: Optional[float] = None
+
     while True:
         # 失败情形的截止条件放在最前是因为pcg失败时的continue会导致后面代码被跳过
         if delta < opts.tol_step:  # 信赖域太小
             return Trust_Region_Result(
-                x, iter, delta, grad, success=False
+                x, iter, delta, grad, success=ratio is not None and ratio > 0.25
             )  # pragma: no cover
         if iter > opts.max_iter:  # 迭代次数超过要求
             return Trust_Region_Result(
@@ -138,6 +141,7 @@ def trust_region(
         hessian.times += 1
 
         if pcg_status.x is None:
+            ratio = None
             if hessian.up_to_date:
                 delta /= 4.0
             else:
@@ -156,14 +160,12 @@ def trust_region(
 
         # 根据下降率确定信赖域缩放
         reduce: float = new_fval - fval
-        ratio: float = (
-            0
-            if reduce >= 0
-            else (1 if reduce <= pcg_status.fval else reduce / pcg_status.fval)
+        ratio = (
+            0 if reduce * pcg_status.fval <= 0 else min(reduce / pcg_status.fval, 1.0)
         )
-        if ratio >= 0.75 and pcg_status.size >= 0.9 * delta:
+        if ratio >= 0.75 and pcg_status.size >= 0.9 * delta and reduce < 0:
             delta *= 2
-        elif ratio <= 0.25:
+        elif ratio <= 0.25 or reduce > 0:
             if not hessian.up_to_date:
                 hessian = Hessian(x)
             else:
