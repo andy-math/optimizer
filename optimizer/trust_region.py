@@ -143,7 +143,6 @@ def trust_region(
 
     fval: float
     grad: Gradient
-    grad_infnorm: float
     H: ndarray
     _constraints: Tuple[ndarray, ndarray, ndarray, ndarray]
 
