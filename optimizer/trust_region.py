@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from typing import Callable, Final, NamedTuple, Optional, Tuple
+from typing import Callable, Final, NamedTuple, Tuple
 
 import numpy
 from numerical import linneq
@@ -20,17 +20,6 @@ from optimizer._internals.trust_region.grad_maker import (
 Trust_Region_Format_T = options.Trust_Region_Format_T
 default_format = options.default_format
 Trust_Region_Options = options.Trust_Region_Options
-
-
-class Trust_Region_Status(NamedTuple):
-    iter: int
-    x: ndarray
-    fval: float
-    grad: Gradient
-    hessian: ndarray
-    pcg_status: Optional[pcg.PCG_Status]
-    delta: float
-    internals_constr_shifted: Tuple[ndarray, ndarray, ndarray, ndarray]
 
 
 class Trust_Region_Result(NamedTuple):
