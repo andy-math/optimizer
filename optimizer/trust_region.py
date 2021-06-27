@@ -153,7 +153,7 @@ def trust_region(
                 x, iter, delta, grad, success=False
             )  # pragma: no cover
 
-        if times_after_hessian_shaking >= hessian_shaking and not hessian_is_up_to_date:
+        if times_after_hessian_shaking > hessian_shaking and not hessian_is_up_to_date:
             H = make_hess(x)
 
         # PCG
