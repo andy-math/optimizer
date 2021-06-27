@@ -1,3 +1,5 @@
+import math
+
 import numpy
 from numerical.typedefs import ndarray
 
@@ -11,4 +13,11 @@ def hessian_precon(H: ndarray) -> ndarray:
     _eps = float(numpy.finfo(numpy.float64).eps)
     dnrms: ndarray = numpy.sqrt(numpy.sum(H * H, axis=1))
     R: ndarray = numpy.maximum(dnrms, numpy.sqrt(numpy.array([_eps])))
+    return R
+
+
+def gradient_precon(g: ndarray) -> ndarray:
+    assert len(g.shape) == 1
+    norm = math.sqrt(float(g @ g))
+    R: ndarray = numpy.full(g.shape, max(norm, 1.0))
     return R
