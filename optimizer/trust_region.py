@@ -140,7 +140,7 @@ def trust_region(
     H = make_hess(x)
     options.output(iter, fval, grad.infnorm, None, H, opts, times_after_hessian_shaking)
 
-    init_grad_infnorm = grad.infnorm
+    init_grad_infnorm: Final[float] = grad.infnorm
     old_fval, stall_iter = fval, 0
     while True:
         # 失败情形的截止条件放在最前是因为pcg失败时的continue会导致后面代码被跳过
