@@ -17,6 +17,11 @@ def subspace_decay(
     # 勾股定理求出内接于大圆信赖域的、以base为圆心的小圆信赖域半径
     delta = math.sqrt(delta * delta - float(base @ base))
 
+    # 如果小圆信赖域太小，或者sqrt(negative) -> NaN
+    # （在浮点误差的情况下会这样），直接返回，啥也不做
+    if math.isnan(delta) or delta == 0:
+        return base, exit_flag
+
     # 尝试对前进方向归一化，如果前进方向异常，直接返回base，啥也不做
     norm = math.sqrt(float(direct @ direct))
     if norm > 0:
