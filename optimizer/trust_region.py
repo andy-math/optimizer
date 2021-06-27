@@ -93,8 +93,7 @@ def trust_region(
         fval: float,
         step_size: float,
         grad_infnorm: float,
-        CGiter: Optional[int],
-        CGexit: Optional[pcg.PCG_EXIT_FLAG],
+        pcg_status: Optional[pcg.PCG_Status],
         hessian: ndarray,
     ) -> None:
         nonlocal _hess_shaked
@@ -104,8 +103,8 @@ def trust_region(
                 fval=fval,
                 step=step_size,
                 grad=grad_infnorm,
-                CGiter=CGiter if CGiter is not None else 0,
-                CGexit=CGexit.name if CGexit is not None else "None",
+                CGiter=pcg_status.iter if pcg_status is not None else 0,
+                CGexit=pcg_status.flag.name if pcg_status is not None else "None",
                 posdef=opts.posdef(hessian) if opts.posdef is not None else "",
                 shaking="Shaking" if _hess_shaked else "       ",
             )
@@ -149,7 +148,7 @@ def trust_region(
     fval = objective(x)
     grad, _constr_shifted = get_info(x, iter, numpy.inf, 0.0)
     H = make_hess(x)
-    output(iter, fval, numpy.nan, grad.infnorm, None, None, H)
+    output(iter, fval, numpy.nan, grad.infnorm, None, H)
 
     init_grad_infnorm = grad.infnorm
     old_fval, stall_iter = fval, 0
@@ -168,33 +167,31 @@ def trust_region(
             H = make_hess(x)
 
         # PCG
-        step: Optional[ndarray]
-        qpval: Optional[float]
-        pcg_iter: int
-        exit_flag: pcg.PCG_EXIT_FLAG
-        step, qpval, pcg_iter, exit_flag = pcg.pcg(
-            grad.value, H, _constr_shifted, delta
-        )
+        pcg_status = pcg.pcg(grad.value, H, _constr_shifted, delta)
         iter, shaking = iter + 1, shaking - 1
 
-        if step is None:
+        if pcg_status.x is None:
             if _hess_is_up_to_date:
                 delta /= 4.0
             else:
                 H = make_hess(x)
-            output(iter, fval, numpy.nan, grad.infnorm, pcg_iter, exit_flag, H)
+            output(iter, fval, numpy.nan, grad.infnorm, pcg_status, H)
             continue
 
-        assert qpval is not None
+        assert pcg_status.fval is not None
 
         # 更新步长、试探点、试探函数值
-        step_size: float = float(numpy.linalg.norm(step))  # type: ignore
-        new_x: ndarray = x + step
+        step_size: float = float(numpy.linalg.norm(pcg_status.x))  # type: ignore
+        new_x: ndarray = x + pcg_status.x
         new_fval: float = objective(new_x)
 
         # 根据下降率确定信赖域缩放
         reduce: float = new_fval - fval
-        ratio: float = 0 if reduce >= 0 else (1 if reduce <= qpval else reduce / qpval)
+        ratio: float = (
+            0
+            if reduce >= 0
+            else (1 if reduce <= pcg_status.fval else reduce / pcg_status.fval)
+        )
         if ratio >= 0.75 and step_size >= 0.9 * delta:
             delta *= 2
         elif ratio <= 0.25:
@@ -212,10 +209,10 @@ def trust_region(
             else:
                 old_fval, stall_iter = fval, 0
 
-        output(iter, fval, step_size, grad.infnorm, pcg_iter, exit_flag, H)
+        output(iter, fval, step_size, grad.infnorm, pcg_status, H)
 
         # 成功收敛准则
-        if exit_flag == pcg.PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE:  # PCG正定收敛
+        if pcg_status.flag == pcg.PCG_Flag.RESIDUAL_CONVERGENCE:  # PCG正定收敛
             if _hess_is_up_to_date:
                 if grad.infnorm < opts.tol_grad:  # 梯度足够小
                     return Trust_Region_Result(x, iter, delta, grad, success=True)

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import enum
-from typing import Optional, Tuple
+from typing import NamedTuple, Optional, Tuple
 
 import numpy
 from numerical.linneq import check, constraint_check, margin
@@ -12,14 +12,18 @@ from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
 
 
 @enum.unique
-class PCG_EXIT_FLAG(enum.Enum):
+class PCG_Flag(enum.Enum):
     RESIDUAL_CONVERGENCE = enum.auto()
     NEGATIVE_CURVATURE = enum.auto()
     OUT_OF_TRUST_REGION = enum.auto()
     VIOLATE_CONSTRAINTS = enum.auto()
 
 
-_exit = PCG_EXIT_FLAG
+class PCG_Status(NamedTuple):
+    x: Optional[ndarray]
+    fval: Optional[float]
+    iter: int
+    flag: PCG_Flag
 
 
 def _input_check(
@@ -32,7 +36,7 @@ def _input_check(
     assertNoInfNaN_float(delta)
 
 
-def _impl_output_check(output: Tuple[ndarray, ndarray, int, PCG_EXIT_FLAG]) -> None:
+def _impl_output_check(output: Tuple[ndarray, ndarray, int, PCG_Flag]) -> None:
     p, direct, _, _ = output
     assertNoInfNaN(p)
     assertNoInfNaN(direct)
@@ -61,7 +65,7 @@ nConstraints = dyn_typing.SizeVar()
             dyn_typing.NDArray(numpy.float64, (N,)),
             dyn_typing.NDArray(numpy.float64, (N,)),
             dyn_typing.Int(),
-            dyn_typing.Class(PCG_EXIT_FLAG),
+            dyn_typing.Class(PCG_Flag),
         )
     ),
 )
@@ -71,7 +75,7 @@ def _impl(
     H: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
-) -> Tuple[ndarray, ndarray, int, PCG_EXIT_FLAG]:
+) -> Tuple[ndarray, ndarray, int, PCG_Flag]:
 
     # 取 max{ l2norm(col(H)), sqrt(eps) }
     # 预条件子 M = C.T @ C == diag(R)
@@ -91,17 +95,17 @@ def _impl(
     for iter in range(n + 1):
         # 残差收敛性检查
         if numpy.max(numpy.abs(z)) < numpy.sqrt(_eps):
-            return (p, direct, iter, _exit.RESIDUAL_CONVERGENCE)
+            return (p, direct, iter, PCG_Flag.RESIDUAL_CONVERGENCE)
 
         # 残差始终不收敛则是hessian矩阵病态，适用于非正定-负曲率情形
         if iter == n:
-            return (p, direct, iter, _exit.NEGATIVE_CURVATURE)  # pragma: no cover
+            return (p, direct, iter, PCG_Flag.NEGATIVE_CURVATURE)  # pragma: no cover
 
         # 负曲率检查
         ww: ndarray = H @ direct
         denom: float = float(direct.T @ ww)
         if denom <= 0:
-            return (p, direct, iter, _exit.NEGATIVE_CURVATURE)
+            return (p, direct, iter, PCG_Flag.NEGATIVE_CURVATURE)
 
         # 试探坐标点
         alpha: float = inner1 / denom
@@ -109,12 +113,12 @@ def _impl(
 
         # 目标点超出信赖域
         if numpy.linalg.norm(pnew) > delta:  # type: ignore
-            return (p, direct, iter, _exit.OUT_OF_TRUST_REGION)
+            return (p, direct, iter, PCG_Flag.OUT_OF_TRUST_REGION)
 
         # 违反约束
         pnew.shape = (n, 1)
         if not check(pnew, constraints):
-            return (p, direct, iter, _exit.VIOLATE_CONSTRAINTS)  # pragma: no cover
+            return (p, direct, iter, PCG_Flag.VIOLATE_CONSTRAINTS)  # pragma: no cover
         pnew.shape = (n,)
 
         # 更新坐标点
@@ -132,9 +136,7 @@ def _impl(
     assert False  # pragma: no cover
 
 
-def _pcg_output_check(
-    output: Tuple[Optional[ndarray], Optional[float], int, PCG_EXIT_FLAG]
-) -> None:
+def _pcg_output_check(output: PCG_Status) -> None:
     p, qpval, _, _ = output
     if p is not None:
         assert qpval is not None
@@ -167,7 +169,7 @@ nConstraints = dyn_typing.SizeVar()
             dyn_typing.Optional(dyn_typing.NDArray(numpy.float64, (N,))),
             dyn_typing.Optional(dyn_typing.Float()),
             dyn_typing.Int(),
-            dyn_typing.Class(PCG_EXIT_FLAG),
+            dyn_typing.Class(PCG_Flag),
         )
     ),
 )
@@ -177,8 +179,8 @@ def pcg(
     H: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
-) -> Tuple[Optional[ndarray], Optional[float], int, PCG_EXIT_FLAG]:
-    def qpval(p: Optional[ndarray]) -> Optional[float]:
+) -> PCG_Status:
+    def fval(p: Optional[ndarray]) -> Optional[float]:
         if p is None:
             return None
         return float(g.T @ p + (0.5 * p).T @ H @ p)
@@ -187,12 +189,12 @@ def pcg(
     p: ndarray
     direct: ndarray
     iter: int
-    exit_flag: PCG_EXIT_FLAG
+    exit_flag: PCG_Flag
     p, direct, iter, exit_flag = _impl(g, H, constraints, delta)
 
     def make_valid_gradient(
-        exit_flag: PCG_EXIT_FLAG,
-    ) -> Tuple[Optional[ndarray], PCG_EXIT_FLAG]:
+        exit_flag: PCG_Flag,
+    ) -> Tuple[Optional[ndarray], PCG_Flag]:
         assert iter == 0
         p = direct  # 使用二阶信息缩小变化太快的维度上的梯度
         norm_p = float(numpy.linalg.norm(p))  # type: ignore
@@ -214,19 +216,19 @@ def pcg(
             if numpy.all(numpy.logical_and(lb <= p, p <= ub)):
                 break
             if numpy.all(eliminated):
-                return None, PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS
+                return None, PCG_Flag.VIOLATE_CONSTRAINTS
         p.shape = (n, 1)
         if not check(p, constraints):
-            return None, PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS
+            return None, PCG_Flag.VIOLATE_CONSTRAINTS
         p.shape = (n,)
         if bool(numpy.any(eliminated)):
-            return p, PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS
+            return p, PCG_Flag.VIOLATE_CONSTRAINTS
         return p, exit_flag
 
     def make_valid_optimal(
-        exit_flag: PCG_EXIT_FLAG,
-    ) -> Tuple[ndarray, PCG_EXIT_FLAG]:
-        assert exit_flag == PCG_EXIT_FLAG.OUT_OF_TRUST_REGION
+        exit_flag: PCG_Flag,
+    ) -> Tuple[ndarray, PCG_Flag]:
+        assert exit_flag == PCG_Flag.OUT_OF_TRUST_REGION
         nonlocal direct, iter
         (n,) = p.shape
         norm_d = float(numpy.linalg.norm(direct))  # type: ignore
@@ -243,33 +245,33 @@ def pcg(
         return p, exit_flag
 
     # 残差收敛：对迭代成功和失败均适用
-    if exit_flag == PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE:
-        return p, qpval(p), iter, exit_flag
+    if exit_flag == PCG_Flag.RESIDUAL_CONVERGENCE:
+        return PCG_Status(p, fval(p), iter, exit_flag)
 
     # 负曲率：迭代成功时不再前进，迭代失败时返回裁剪梯度
-    if exit_flag == PCG_EXIT_FLAG.NEGATIVE_CURVATURE:
+    if exit_flag == PCG_Flag.NEGATIVE_CURVATURE:
         if iter > 0:
-            return p, qpval(p), iter, exit_flag  # pragma: no cover
+            return PCG_Status(p, fval(p), iter, exit_flag)  # pragma: no cover
         else:
             p_clip, exit_flag = make_valid_gradient(exit_flag)
-            return p_clip, qpval(p_clip), iter, exit_flag
+            return PCG_Status(p_clip, fval(p_clip), iter, exit_flag)
 
     # 超出信赖域：迭代成功时前进，迭代失败时返回裁剪梯度
-    if exit_flag == PCG_EXIT_FLAG.OUT_OF_TRUST_REGION:
+    if exit_flag == PCG_Flag.OUT_OF_TRUST_REGION:
         if iter > 0:
             p_clip, exit_flag = make_valid_optimal(exit_flag)
-            return p_clip, qpval(p_clip), iter, exit_flag
+            return PCG_Status(p_clip, fval(p_clip), iter, exit_flag)
         else:
             p_clip, exit_flag = make_valid_gradient(exit_flag)
-            return p_clip, qpval(p_clip), iter, exit_flag
+            return PCG_Status(p_clip, fval(p_clip), iter, exit_flag)
 
     # 违反约束：迭代成功时不再前进，迭代失败时返回裁剪梯度
-    if exit_flag == PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS:
+    if exit_flag == PCG_Flag.VIOLATE_CONSTRAINTS:
         if iter > 0:
-            return p, qpval(p), iter, exit_flag  # pragma: no cover
+            return PCG_Status(p, fval(p), iter, exit_flag)  # pragma: no cover
         else:
             p_clip, exit_flag = make_valid_gradient(exit_flag)
-            return p_clip, qpval(p_clip), iter, exit_flag
+            return PCG_Status(p_clip, fval(p_clip), iter, exit_flag)
 
     # 其它情形：不应存在
     assert False  # pragma: no cover
