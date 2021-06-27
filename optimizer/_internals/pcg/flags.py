@@ -7,3 +7,4 @@ class PCG_Flag(enum.Enum):
     NEGATIVE_CURVATURE = enum.auto()
     OUT_OF_TRUST_REGION = enum.auto()
     VIOLATE_CONSTRAINTS = enum.auto()
+    POLICY_ONLY = enum.auto()

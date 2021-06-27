@@ -12,7 +12,7 @@ from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
 
 from optimizer._internals.pcg import flags
 from optimizer._internals.pcg.policies import subspace_decay
-from optimizer._internals.pcg.precondition import hessian_precon
+from optimizer._internals.pcg.precondition import gradient_precon, hessian_precon
 
 PCG_Flag = flags.PCG_Flag
 
@@ -193,17 +193,57 @@ def pcg(
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
 ) -> PCG_Status:
-    def fval(p: Optional[ndarray]) -> Optional[float]:
-        return None if p is None else float(g.T @ p + (0.5 * p).T @ H @ p)
+    def fval(p: ndarray) -> float:
+        return float(g.T @ p + (0.5 * p).T @ H @ p)
+
+    def norm2(x: ndarray) -> float:
+        return math.sqrt(float(x @ x))
+
+    def best_policy(
+        g: ndarray,
+        H: ndarray,
+        R: ndarray,
+        constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
+        delta: float,
+    ) -> PCG_Status:
+        p0, exit0 = subspace_decay(
+            g, H, numpy.zeros(g.shape), -g / R, delta, constraints, PCG_Flag.POLICY_ONLY
+        )
+        p1, direct, iter, exit1 = _implimentation(g, H, R, constraints, delta)
+        fval1 = fval(p1)
+        if exit1 == PCG_Flag.RESIDUAL_CONVERGENCE:
+            assert direct is None
+        else:
+            assert direct is not None
+            p2, exit2 = subspace_decay(g, H, p1, direct, delta, constraints, exit1)
+            if p2 is not None:
+                fval2 = fval(p2)
+                if fval2 < fval1 or (fval1 == fval2 and norm2(p2) < norm2(p1)):
+                    p1, fval1, exit1 = p2, fval2, exit2
+        if p0 is not None:
+            fval0 = fval(p0)
+            if fval0 < fval1 or (fval0 == fval1 and norm2(p0) < norm2(p1)):
+                return PCG_Status(p0, fval0, 0, exit0)
+        if numpy.all(p1 == 0):
+            return PCG_Status(None, None, iter, exit1)
+        else:
+            return PCG_Status(p1, fval1, iter, exit1)
 
     # 主循环
-    p: Optional[ndarray]
-    p, direct, iter, exit_flag = _implimentation(
-        g, H, hessian_precon(H), constraints, delta
-    )
-    if exit_flag == PCG_Flag.RESIDUAL_CONVERGENCE:
-        assert direct is None
+    ret1 = best_policy(g, H, hessian_precon(H), constraints, delta)
+    ret2 = best_policy(g, H, gradient_precon(g), constraints, delta)
+    if ret1.x is None and ret2.x is None:
+        return ret1
+    elif ret1.x is None:
+        return ret2
+    elif ret2.x is None:
+        return ret1
     else:
-        assert direct is not None
-        p, exit_flag = subspace_decay(g, H, p, direct, delta, constraints, exit_flag)
-    return PCG_Status(p, fval(p), iter, exit_flag)
+        assert ret1.fval is not None
+        assert ret2.fval is not None
+        if ret1.fval < ret2.fval or (
+            ret1.fval == ret2.fval and norm2(ret1.x) <= norm2(ret2.x)
+        ):
+            return ret1
+        else:
+            return ret2
