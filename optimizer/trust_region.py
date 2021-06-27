@@ -92,17 +92,9 @@ def trust_region(
         return numpy.array([objective(x)])
 
     def get_info(
-        x: ndarray, iter: int, grad_infnorm: float, init_grad_infnorm: float
+        x: ndarray, check: GradientCheck
     ) -> Tuple[Gradient, Tuple[ndarray, ndarray, ndarray, ndarray]]:
-        new_grad = make_gradient(
-            gradient,
-            x,
-            constraints,
-            opts,
-            check=GradientCheck(
-                objective_ndarray, iter, grad_infnorm, init_grad_infnorm
-            ),
-        )
+        new_grad = make_gradient(gradient, x, constraints, opts, check=check)
         A, b, lb, ub = constraints
         _constr_shifted = (A, b - A @ x, lb - x, ub - x)
         return new_grad, _constr_shifted
@@ -125,7 +117,9 @@ def trust_region(
     _constr_shifted: Tuple[ndarray, ndarray, ndarray, ndarray]
 
     fval = objective(x)
-    grad, _constr_shifted = get_info(x, iter, numpy.inf, 0.0)
+    grad, _constr_shifted = get_info(
+        x, GradientCheck(objective_ndarray, iter, numpy.inf, 0.0)
+    )
     H = make_hess(x)
     options.output(iter, fval, grad.infnorm, None, H, opts, times_after_hessian_shaking)
 
@@ -191,7 +185,10 @@ def trust_region(
         # 对符合下降要求的候选点进行更新
         if new_fval < fval:
             x, fval, hessian_is_up_to_date = new_x, new_fval, False
-            grad, _constr_shifted = get_info(x, iter, grad.infnorm, init_grad_infnorm)
+            grad, _constr_shifted = get_info(
+                x,
+                GradientCheck(objective_ndarray, iter, grad.infnorm, init_grad_infnorm),
+            )
             if opts.abstol_fval is not None and old_fval - fval < opts.abstol_fval:
                 stall_iter += 1
             else:
