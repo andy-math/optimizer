@@ -56,14 +56,12 @@ def subspace_decay(
     if math.isnan(delta) or delta == 0:
         return base, exit_flag
 
-    # 尝试对前进方向归一化，如果前进方向异常，直接返回base，啥也不做
+    # 如果前进方向异常，直接返回base，啥也不做
     norm = math.sqrt(float(direct @ direct))
-    if norm > 0:
-        direct = direct / norm
-    else:
+    if math.isnan(norm) or norm == 0:
         return base, exit_flag
 
-    direct = direct * delta  # 将前进方向对齐到小圆边界
+    direct = scale(g, H, direct, delta)  # 使用精确的二次型方法确定最优缩放尺度
     lb, ub = margin(base, constraints)  # 求出base处的约束切面上下限
     eliminated = numpy.zeros(direct.shape, dtype=numpy.bool_)  # 初始化越界表
     while True:
