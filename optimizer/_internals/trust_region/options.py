@@ -5,7 +5,6 @@ from mypy_extensions import NamedArg
 from numerical.isposdef import isposdef
 from numerical.typedefs import ndarray
 from optimizer import pcg
-from optimizer._internals.trust_region import format
 
 Trust_Region_Format_T = Optional[
     Callable[
@@ -77,12 +76,12 @@ class Trust_Region_Options:
     check_abs: Optional[float] = None
     check_iter: Optional[int] = None  # 0表示只在最优化开始前进行一次梯度检查，-1表示完全关闭检查，默认的None表示始终进行检查
     shaking: Union[Literal["x.shape[0]"], int] = "x.shape[0]"
-    format: format.Trust_Region_Format_T
+    format: Trust_Region_Format_T
     posdef: Optional[Callable[[ndarray], str]]
 
     def __init__(self, *, max_iter: int) -> None:
         self.max_iter = max_iter
-        self.format = format.default_format
+        self.format = default_format
         self.posdef = lambda H: "-*- ill -*-" if not isposdef(H) else "           "
 
 
