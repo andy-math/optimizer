@@ -178,6 +178,7 @@ def trust_region(
                 x,
                 GradientCheck(objective_ndarray, iter, grad.infnorm, init_grad_infnorm),
             )
+            # 下降量超过设定则重置延迟计数
             if opts.abstol_fval is not None and old_fval - fval < opts.abstol_fval:
                 stall_iter += 1
             else:
@@ -187,18 +188,18 @@ def trust_region(
             iter, fval, grad.infnorm, pcg_status, hessian.H, opts, hessian.times
         )
 
-        # 成功收敛准则
-        if pcg_status.flag == pcg.PCG_Flag.RESIDUAL_CONVERGENCE:  # PCG正定收敛
-            if hessian.up_to_date:
-                if grad.infnorm < opts.tol_grad:  # 梯度足够小
-                    return Trust_Region_Result(x, iter, delta, grad, success=True)
-                if pcg_status.size < opts.tol_step:  # 步长足够小
-                    return Trust_Region_Result(x, iter, delta, grad, success=True)
-            else:
+        # PCG正定收敛
+        if pcg_status.flag == pcg.PCG_Flag.RESIDUAL_CONVERGENCE:
+            if not hessian.up_to_date:
                 hessian = Hessian(x)
-
-        if opts.max_stall_iter is not None and stall_iter >= opts.max_stall_iter:
-            if hessian.up_to_date:
+                continue
+            if grad.infnorm < opts.tol_grad:  # 梯度足够小
                 return Trust_Region_Result(x, iter, delta, grad, success=True)
-            else:
+            if pcg_status.size < opts.tol_step:  # 步长足够小
+                return Trust_Region_Result(x, iter, delta, grad, success=True)
+
+        # 下降量过低收敛
+        if opts.max_stall_iter is not None and stall_iter >= opts.max_stall_iter:
+            if not hessian.up_to_date:
                 hessian = Hessian(x)
+            return Trust_Region_Result(x, iter, delta, grad, success=True)
