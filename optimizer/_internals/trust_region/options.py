@@ -22,7 +22,16 @@ Trust_Region_Format_T = Optional[
     ]
 ]
 _default_format_times: int = 0
-_default_format_width: Dict[str, int] = {}
+_default_format_width: Dict[str, int] = {
+    "Iter": 3,
+    "F-Val": 14,
+    "Step": 13,
+    "Grad": 9,
+    "CG": 1,
+    "CG Exit": 20,
+    "is Posdef": 11,
+    "Hessian": 7,
+}
 
 
 def default_format(
@@ -49,7 +58,7 @@ def default_format(
     }
     output: List[str] = []
     for k, v in data.items():
-        _width = _default_format_width.get(k, 0)
+        _width = _default_format_width[k]
         _width = max(_width, max(len(k), len(v)))
         output.append(" " * (_width - len(v)) + v)
         _default_format_width[k] = _width
