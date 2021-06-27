@@ -103,23 +103,21 @@ def trust_region(
         _constr_shifted = (A, b - A @ x, lb - x, ub - x)
         return new_grad, _constr_shifted
 
-    iter: int = 0
-    delta: float = opts.init_delta
     assert linneq.check(x.reshape(-1, 1), constraints)
 
-    fval: float = objective(x)
-    hessian: Hessian = Hessian(x)
-    grad: Gradient
-    _constr_shifted: Tuple[ndarray, ndarray, ndarray, ndarray]
-
+    fval = objective(x)
+    hessian = Hessian(x)
     grad, _constr_shifted = get_info(
-        x, GradientCheck(objective_ndarray, iter, numpy.inf, 0.0)
+        x, GradientCheck(objective_ndarray, 0, numpy.inf, 0.0)
     )
+
+    iter = 0
+    delta = opts.init_delta
+    init_grad_infnorm: Final[float] = grad.infnorm
+    old_fval, stall_iter = fval, 0
 
     options.output(iter, fval, grad.infnorm, None, hessian.H, opts, hessian.times)
 
-    init_grad_infnorm: Final[float] = grad.infnorm
-    old_fval, stall_iter = fval, 0
     while True:
         # 失败情形的截止条件放在最前是因为pcg失败时的continue会导致后面代码被跳过
         if delta < opts.tol_step:  # 信赖域太小
