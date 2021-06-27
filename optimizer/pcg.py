@@ -193,11 +193,23 @@ def pcg(
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
 ) -> PCG_Status:
+    def fval(p: Optional[ndarray]) -> Optional[float]:
+        return None if p is None else float(g.T @ p + (0.5 * p).T @ H @ p)
 
+    _p0, _exit0 = subspace_decay(
+        g,
+        H,
+        numpy.zeros(g.shape),
+        numpy.linalg.lstsq(H, -g, rcond=None),  # type: ignore
+        delta,
+        constraints,
+        PCG_Flag.POLICY_ONLY,
+    )
+    ret0 = PCG_Status(_p0, fval(_p0), 0, _exit0)
     ret1 = _best_policy(g, H, hessian_precon(H), constraints, delta)
     ret2 = _best_policy(g, H, gradient_precon(g), constraints, delta)
 
-    return _best_status(ret1, ret2)
+    return _best_status(_best_status(ret1, ret2), ret0)
 
 
 def _best_status(ret1: PCG_Status, ret2: PCG_Status) -> PCG_Status:
