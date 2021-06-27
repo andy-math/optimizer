@@ -166,10 +166,10 @@ def trust_region(
         if ratio >= 0.75 and pcg_status.size >= 0.9 * delta:
             delta *= 2
         elif ratio <= 0.25:
-            if hessian.up_to_date:
-                delta = pcg_status.size / 4.0
-            else:
+            if not hessian.up_to_date:
                 hessian = Hessian(x)
+            else:
+                delta = pcg_status.size / 4.0
 
         # 对符合下降要求的候选点进行更新
         if new_fval < fval:
@@ -202,4 +202,5 @@ def trust_region(
         if opts.max_stall_iter is not None and stall_iter >= opts.max_stall_iter:
             if not hessian.up_to_date:
                 hessian = Hessian(x)
+                continue
             return Trust_Region_Result(x, iter, delta, grad, success=True)
