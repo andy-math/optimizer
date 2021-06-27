@@ -17,7 +17,9 @@ def scale(g: ndarray, H: ndarray, x: ndarray, delta: float) -> ndarray:
     当(d @ H @ d) > 0,最小值为(dHd)a + (gd) == 0的解
     也就是alpha <- -gd/dhd
 
-    否则，alpha在无穷远处，但近处可能不降反升
+    否则，小于0的hessian意味着往正反方向走，梯度都减小
+    因此走梯度小于0的下降方向，走到信赖域边缘即可
+    遇到大于0的梯度则走反方向
     """
     norm = math.sqrt(float(x @ x))
     if norm > 0:
