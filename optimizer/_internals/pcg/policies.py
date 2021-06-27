@@ -11,11 +11,14 @@ def subspace_decay(
     base: ndarray,
     direct: ndarray,
     delta: float,
+    alpha: Optional[float],
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     exit_flag: PCG_Flag,
 ) -> Tuple[Optional[ndarray], PCG_Flag]:
     # 勾股定理求出内接于大圆信赖域的、以base为圆心的小圆信赖域半径
     delta = math.sqrt(delta * delta - float(base @ base))
+    # 当存在二次型最优前进距离时，至多前进至最优点，而不是信赖域边界
+    delta = delta if alpha is None else min(delta, alpha)
 
     # 如果小圆信赖域太小，或者sqrt(negative) -> NaN
     # （在浮点误差的情况下会这样），直接返回，啥也不做
