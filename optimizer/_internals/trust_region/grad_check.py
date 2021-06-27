@@ -27,13 +27,13 @@ class Grad_Check_Failed(BaseException):
 
 def gradient_check(
     analytic: ndarray,
-    f: Callable[[ndarray], ndarray],
     x: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
+    opts: Trust_Region_Options,
+    f: Callable[[ndarray], ndarray],
     iter: int,
     gradient_infnorm: float,
     initial_gradient_infnorm: float,
-    opts: Trust_Region_Options,
 ) -> None:
     need_rel_check = (
         opts.check_iter is None or iter <= opts.check_iter

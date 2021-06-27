@@ -9,7 +9,11 @@ from overloads.shortcuts import assertNoInfNaN
 
 from optimizer import pcg
 from optimizer._internals.trust_region import format, options
-from optimizer._internals.trust_region.grad_maker import make_gradient, make_hessian
+from optimizer._internals.trust_region.grad_maker import (
+    GradientCheck,
+    make_gradient,
+    make_hessian,
+)
 
 Trust_Region_Format_T = format.Trust_Region_Format_T
 default_format = format.default_format
@@ -113,14 +117,12 @@ def trust_region(
     ) -> Tuple[ndarray, float, Tuple[ndarray, ndarray, ndarray, ndarray]]:
         new_grad = make_gradient(
             gradient,
-            objective_ndarray,
             x,
             constraints,
-            iter,
-            grad_infnorm,
-            init_grad_infnorm,
             opts,
-            check=True,
+            check=GradientCheck(
+                objective_ndarray, iter, grad_infnorm, init_grad_infnorm
+            ),
         )
         grad_infnorm = numpy.max(numpy.abs(new_grad))
         A, b, lb, ub = constraints
@@ -130,16 +132,7 @@ def trust_region(
     def make_hess(x: ndarray) -> ndarray:
         nonlocal _hess_is_up_to_date, shaking, _hess_shaked
         assert not _hess_is_up_to_date
-        H = make_hessian(
-            gradient,
-            objective_ndarray,
-            x,
-            constraints,
-            iter,
-            grad_infnorm,
-            init_grad_infnorm,
-            opts,
-        )
+        H = make_hessian(gradient, x, constraints, opts)
         _hess_is_up_to_date, _hess_shaked = True, True
         shaking = x.shape[0] if opts.shaking == "x.shape[0]" else opts.shaking
         return H

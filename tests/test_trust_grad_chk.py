@@ -5,6 +5,7 @@ import numpy
 from numerical import difference
 from numerical.typedefs import ndarray
 from optimizer import trust_region
+from optimizer._internals.trust_region.grad_check import Grad_Check_Failed
 from overloads.capture_exceptions import Captured_Exception, capture_exceptions
 
 
@@ -38,18 +39,18 @@ def run(opts: trust_region.Trust_Region_Options) -> trust_region.Trust_Region_Re
 class Test_grad_check:
     def test1(self) -> None:
         opts = trust_region.Trust_Region_Options(max_iter=500)
-        result = capture_exceptions(run, opts, catch=trust_region.Grad_Check_Failed)
+        result = capture_exceptions(run, opts, catch=Grad_Check_Failed)
         assert isinstance(result, Captured_Exception)
-        assert isinstance(result.exception, trust_region.Grad_Check_Failed)
+        assert isinstance(result.exception, Grad_Check_Failed)
         assert result.exception.checker == difference.relative
 
     def test2(self) -> None:
         opts = trust_region.Trust_Region_Options(max_iter=500)
         opts.check_rel = numpy.inf
         opts.check_abs = 1.0e-6
-        result = capture_exceptions(run, opts, catch=trust_region.Grad_Check_Failed)
+        result = capture_exceptions(run, opts, catch=Grad_Check_Failed)
         assert isinstance(result, Captured_Exception)
-        assert isinstance(result.exception, trust_region.Grad_Check_Failed)
+        assert isinstance(result.exception, Grad_Check_Failed)
         assert result.exception.checker == difference.absolute
 
 
