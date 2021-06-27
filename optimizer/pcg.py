@@ -144,7 +144,7 @@ def _impl(
         beta: float = inner1 / inner2
         direct = z + beta * direct
 
-    if numpy.max(numpy.abs(z)) < numpy.sqrt(_eps):
+    if math.sqrt(float(z @ z)) < numpy.sqrt(_eps):
         return (p, None, iter, PCG_Flag.RESIDUAL_CONVERGENCE)
     else:  # 残差始终不收敛的情形
         assert False  # pragma: no cover
