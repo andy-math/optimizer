@@ -179,7 +179,6 @@ def trust_region(
             )  # pragma: no cover
 
         if times_after_hessian_shaking >= hessian_shaking and not hessian_is_up_to_date:
-            assert times_after_hessian_shaking == hessian_shaking
             H = make_hess(x)
 
         # PCG
