@@ -109,7 +109,7 @@ def _impl(
     for iter in range(n):
         # 残差收敛性检查
         if numpy.max(numpy.abs(z)) < numpy.sqrt(_eps):
-            return (p, direct, iter, PCG_Flag.RESIDUAL_CONVERGENCE)
+            return (p, None, iter, PCG_Flag.RESIDUAL_CONVERGENCE)
 
         # 负曲率检查
         ww: ndarray = H @ direct
