@@ -124,15 +124,17 @@ def _input_check(
         Callable[[ndarray], float],
         Callable[[ndarray], ndarray],
         ndarray,
-        ndarray,
-        ndarray,
-        ndarray,
-        ndarray,
+        Tuple[
+            ndarray,
+            ndarray,
+            ndarray,
+            ndarray,
+        ],
         Trust_Region_Options,
     ]
 ) -> None:
-    _, _, x, A, b, lb, ub, _ = input
-    linneq.constraint_check(A, b, lb, ub, theta=x)
+    _, _, x, constraints, _ = input
+    linneq.constraint_check(constraints, theta=x)
 
 
 def _output_check(output: Trust_Region_Result) -> None:
@@ -143,28 +145,29 @@ N = dyn_typing.SizeVar()
 nConstraint = dyn_typing.SizeVar()
 
 
-@dyn_typing.dyn_check_8(
+@dyn_typing.dyn_check_5(
     input=(
         dyn_typing.Callable(),
         dyn_typing.Callable(),
         dyn_typing.NDArray(numpy.float64, (N,)),
-        dyn_typing.NDArray(numpy.float64, (nConstraint, N)),
-        dyn_typing.NDArray(numpy.float64, (nConstraint,)),
-        dyn_typing.NDArray(numpy.float64, (N,)),  # force line wrap
-        dyn_typing.NDArray(numpy.float64, (N,)),
+        dyn_typing.Tuple(
+            (
+                dyn_typing.NDArray(numpy.float64, (nConstraint, N)),
+                dyn_typing.NDArray(numpy.float64, (nConstraint,)),
+                dyn_typing.NDArray(numpy.float64, (N,)),  # force line wrap
+                dyn_typing.NDArray(numpy.float64, (N,)),
+            )
+        ),
         dyn_typing.Class(Trust_Region_Options),
     ),
     output=dyn_typing.Class(Trust_Region_Result),
 )
-@bind_checker.bind_checker_8(input=_input_check, output=_output_check)
+@bind_checker.bind_checker_5(input=_input_check, output=_output_check)
 def trust_region(
     objective: Callable[[ndarray], float],
     gradient: Callable[[ndarray], ndarray],
     x: ndarray,
-    constr_A: ndarray,
-    constr_b: ndarray,
-    constr_lb: ndarray,
-    constr_ub: ndarray,
+    constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     opts: Trust_Region_Options,
 ) -> Trust_Region_Result:
 
@@ -177,8 +180,9 @@ def trust_region(
 
     def grad_patch(x: ndarray, g: ndarray) -> ndarray:
         if opts.border_abstol is not None:
-            g[numpy.logical_and(x - constr_lb < opts.border_abstol, g > 0)] = 0.0
-            g[numpy.logical_and(constr_ub - x < opts.border_abstol, g < 0)] = 0.0
+            lb, ub = constraints[-2:]
+            g[numpy.logical_and(x - lb < opts.border_abstol, g > 0)] = 0.0
+            g[numpy.logical_and(ub - x < opts.border_abstol, g < 0)] = 0.0
         return g
 
     def output(
@@ -217,9 +221,7 @@ def trust_region(
                 if grad_infnorm < init_grad_infnorm * opts.check_rel:
                     break
 
-            findiff_ = findiff.findiff(
-                objective_ndarray, x, constr_A, constr_b, constr_lb, constr_ub
-            )
+            findiff_ = findiff.findiff(objective_ndarray, x, constraints)
             assert len(findiff_.shape) == 2 and findiff_.shape[0] == 1
             findiff_.shape = (findiff_.shape[1],)
 
@@ -238,20 +240,14 @@ def trust_region(
     ) -> Tuple[ndarray, float, Tuple[ndarray, ndarray, ndarray, ndarray]]:
         new_grad = make_grad(x, iter, grad_infnorm, init_grad_infnorm)
         grad_infnorm = numpy.max(numpy.abs(new_grad))
-        constraints = (constr_A, constr_b - constr_A @ x, constr_lb - x, constr_ub - x)
-        return new_grad, grad_infnorm, constraints
+        A, b, lb, ub = constraints
+        _constraints = (A, b - A @ x, lb - x, ub - x)
+        return new_grad, grad_infnorm, _constraints
 
     def make_hess(x: ndarray) -> ndarray:
         nonlocal _hess_is_up_to_date, shaking, _hess_shaked
         assert not _hess_is_up_to_date
-        H = findiff.findiff(
-            lambda x: grad_patch(x, gradient(x)),
-            x,
-            constr_A,
-            constr_b,
-            constr_lb,
-            constr_ub,
-        )
+        H = findiff.findiff(lambda x: grad_patch(x, gradient(x)), x, constraints)
         H = (H.T + H) / 2.0
         _hess_is_up_to_date, _hess_shaked = True, True
         shaking = x.shape[0] if opts.shaking == "x.shape[0]" else opts.shaking
@@ -259,16 +255,16 @@ def trust_region(
 
     iter: int = 0
     delta: float = opts.init_delta
-    assert linneq.check(x.reshape(-1, 1), constr_A, constr_b, constr_lb, constr_ub)
+    assert linneq.check(x.reshape(-1, 1), constraints)
 
     fval: float
     grad: ndarray
     grad_infnorm: float
     H: ndarray
-    constraints: Tuple[ndarray, ndarray, ndarray, ndarray]
+    _constraints: Tuple[ndarray, ndarray, ndarray, ndarray]
 
     fval = objective(x)
-    grad, grad_infnorm, constraints = get_info(x, iter, numpy.inf, 0.0)
+    grad, grad_infnorm, _constraints = get_info(x, iter, numpy.inf, 0.0)
     H = make_hess(x)
     output(iter, fval, numpy.nan, grad_infnorm, None, None, H)
 
@@ -293,7 +289,7 @@ def trust_region(
         qpval: Optional[float]
         pcg_iter: int
         exit_flag: pcg.PCG_EXIT_FLAG
-        step, qpval, pcg_iter, exit_flag = pcg.pcg(grad, H, constraints, delta)
+        step, qpval, pcg_iter, exit_flag = pcg.pcg(grad, H, _constraints, delta)
         iter, shaking = iter + 1, shaking - 1
 
         if step is None:
@@ -325,7 +321,7 @@ def trust_region(
         # 对符合下降要求的候选点进行更新
         if new_fval < fval:
             x, fval, _hess_is_up_to_date = new_x, new_fval, False
-            grad, grad_infnorm, constraints = get_info(
+            grad, grad_infnorm, _constraints = get_info(
                 x, iter, grad_infnorm, init_grad_infnorm
             )
             if opts.abstol_fval is not None and old_fval - fval < opts.abstol_fval:

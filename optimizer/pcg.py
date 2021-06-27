@@ -28,7 +28,7 @@ def _input_check(
     g, H, constraints, delta = input
     assertNoInfNaN(g)
     assertNoInfNaN(H)
-    constraint_check(*constraints)
+    constraint_check(constraints)
     assertNoInfNaN_float(delta)
 
 
@@ -113,7 +113,7 @@ def _impl(
 
         # 违反约束
         pnew.shape = (n, 1)
-        if not check(pnew, *constraints):
+        if not check(pnew, constraints):
             return (p, direct, iter, _exit.VIOLATE_CONSTRAINTS)  # pragma: no cover
         pnew.shape = (n,)
 
@@ -200,7 +200,7 @@ def pcg(
             p /= norm_p
         p = p * delta
         (n,) = p.shape
-        lb, ub = margin(numpy.zeros((n,)), *constraints)
+        lb, ub = margin(numpy.zeros((n,)), constraints)
         eliminated = numpy.zeros((n,), dtype=numpy.bool_)
         while True:
             index: numpy.ndarray
@@ -216,7 +216,7 @@ def pcg(
             if numpy.all(eliminated):
                 return None, PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS
         p.shape = (n, 1)
-        if not check(p, *constraints):
+        if not check(p, constraints):
             return None, PCG_EXIT_FLAG.VIOLATE_CONSTRAINTS
         p.shape = (n,)
         if bool(numpy.any(eliminated)):
@@ -235,7 +235,7 @@ def pcg(
         distance = float(numpy.sqrt(delta * delta - p.T @ p))  # 勾股定理
         p_new = p + distance * direct
         p_new.shape = (n, 1)
-        if check(p_new, *constraints):
+        if check(p_new, constraints):
             p_new.shape = (n,)
             iter += 1
             return p_new, exit_flag

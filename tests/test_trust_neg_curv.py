@@ -31,10 +31,7 @@ class Test_neg_curve:
             func,
             grad,
             numpy.array([9.5]),
-            constr_A,
-            constr_b,
-            constr_lb,
-            constr_ub,
+            (constr_A, constr_b, constr_lb, constr_ub),
             opts,
         )
         assert result.success
