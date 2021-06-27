@@ -193,9 +193,6 @@ def pcg(
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
 ) -> PCG_Status:
-    def fval(p: ndarray) -> float:
-        return float(g.T @ p + (0.5 * p).T @ H @ p)
-
     def norm2(x: ndarray) -> float:
         return math.sqrt(float(x @ x))
 
