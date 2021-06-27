@@ -7,7 +7,7 @@ from numerical.typedefs import ndarray
 from optimizer._internals.pcg.flags import PCG_Flag
 
 
-def scale(g: ndarray, H: ndarray, x: ndarray, delta: float) -> ndarray:
+def scale(g: ndarray, H: ndarray, _x: ndarray, delta: float) -> ndarray:
     """
     g = g0 + H @ base (H具有对称性)(此步在函数入口处patch)
     f = g @ x + 0.5 * (x @ H @ x)
@@ -21,9 +21,11 @@ def scale(g: ndarray, H: ndarray, x: ndarray, delta: float) -> ndarray:
     因此走梯度小于0的下降方向，走到信赖域边缘即可
     遇到大于0的梯度则走反方向
     """
-    norm = math.sqrt(float(x @ x))
+    norm = math.sqrt(float(_x @ _x))
     if norm > 0:
-        x = x / norm
+        x = _x / norm
+    else:
+        x = _x.copy()
     gd = float(g @ x)
     dHd = float(x @ H @ x)
     if dHd > 0:
@@ -39,29 +41,29 @@ def scale(g: ndarray, H: ndarray, x: ndarray, delta: float) -> ndarray:
 def subspace_decay(
     g: ndarray,
     H: ndarray,
-    base: ndarray,
-    direct: ndarray,
+    _base: ndarray,
+    _direct: ndarray,
     delta: float,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     exit_flag: PCG_Flag,
 ) -> Tuple[Optional[ndarray], PCG_Flag]:
-    g = g + H @ base  # scale patch
+    g = g + H @ _base  # scale patch
 
     # 勾股定理求出内接于大圆信赖域的、以base为圆心的小圆信赖域半径
-    delta = math.sqrt(delta * delta - float(base @ base))
+    delta = math.sqrt(delta * delta - float(_base @ _base))
 
     # 如果小圆信赖域太小，或者sqrt(negative) -> NaN
     # （在浮点误差的情况下会这样），直接返回，啥也不做
     if math.isnan(delta) or delta == 0:
-        return base, exit_flag
+        return _base, exit_flag
 
     # 如果前进方向异常，直接返回base，啥也不做
-    norm = math.sqrt(float(direct @ direct))
+    norm = math.sqrt(float(_direct @ _direct))
     if math.isnan(norm) or norm == 0:
-        return base, exit_flag
+        return _base, exit_flag
 
-    direct = scale(g, H, direct, delta)  # 使用精确的二次型方法确定最优缩放尺度
-    lb, ub = margin(base, constraints)  # 求出base处的约束切面上下限
+    direct = scale(g, H, _direct, delta)  # 使用精确的二次型方法确定最优缩放尺度
+    lb, ub = margin(_base, constraints)  # 求出base处的约束切面上下限
     eliminated = numpy.zeros(direct.shape, dtype=numpy.bool_)  # 初始化越界表
     while True:
         # 更新越界表
@@ -77,7 +79,7 @@ def subspace_decay(
         if numpy.all(eliminated):
             break
 
-    base = base + direct
+    base = _base + direct
     # 如果折半衰减后不满足约束，放弃，返回None
     base.shape = (base.shape[0], 1)
     if not check(base, constraints):
