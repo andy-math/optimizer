@@ -47,15 +47,10 @@ def _input_check(
     assertNoInfNaN_float(delta)
 
 
-def _impl_output_check(
-    output: Tuple[ndarray, Optional[ndarray], Optional[float], int, PCG_Flag]
-) -> None:
-    p, direct, alpha, _, _ = output
+def _impl_output_check(output: Tuple[ndarray, ndarray, int, PCG_Flag]) -> None:
+    p, direct, _, _ = output
     assertNoInfNaN(p)
-    if direct is not None:
-        assertNoInfNaN(direct)
-    if alpha is not None:
-        assertNoInfNaN_float(alpha)
+    assertNoInfNaN(direct)
 
 
 N = dyn_typing.SizeVar()
@@ -79,8 +74,7 @@ nConstraints = dyn_typing.SizeVar()
     output=dyn_typing.Tuple(
         (
             dyn_typing.NDArray(numpy.float64, (N,)),
-            dyn_typing.Optional(dyn_typing.NDArray(numpy.float64, (N,))),
-            dyn_typing.Optional(dyn_typing.Float()),
+            dyn_typing.NDArray(numpy.float64, (N,)),
             dyn_typing.Int(),
             dyn_typing.Class(PCG_Flag),
         )
@@ -92,7 +86,7 @@ def _impl(
     H: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
-) -> Tuple[ndarray, Optional[ndarray], Optional[float], int, PCG_Flag]:
+) -> Tuple[ndarray, ndarray, int, PCG_Flag]:
 
     # 取 max{ l2norm(col(H)), sqrt(eps) }
     # 预条件子 M = C.T @ C == diag(R)
@@ -112,26 +106,26 @@ def _impl(
     for iter in range(n):
         # 残差收敛性检查
         if numpy.max(numpy.abs(z)) < numpy.sqrt(_eps):
-            return (p, None, None, iter, PCG_Flag.RESIDUAL_CONVERGENCE)
+            return (p, direct, iter, PCG_Flag.RESIDUAL_CONVERGENCE)
 
         # 负曲率检查
         ww: ndarray = H @ direct
         denom: float = float(direct.T @ ww)
         if denom <= 0:
-            return (p, direct, None, iter, PCG_Flag.NEGATIVE_CURVATURE)
+            return (p, direct, iter, PCG_Flag.NEGATIVE_CURVATURE)
 
         # 试探坐标点
         alpha: float = inner1 / denom
         pnew: ndarray = p + alpha * direct
 
         # 目标点超出信赖域
-        if math.sqrt(float(pnew @ pnew)) > delta:
-            return (p, direct, alpha, iter, PCG_Flag.OUT_OF_TRUST_REGION)
+        if numpy.linalg.norm(pnew) > delta:  # type: ignore
+            return (p, direct, iter, PCG_Flag.OUT_OF_TRUST_REGION)
 
         # 违反约束
         pnew.shape = (n, 1)
         if not check(pnew, constraints):
-            return (p, direct, alpha, iter, PCG_Flag.VIOLATE_CONSTRAINTS)
+            return (p, direct, iter, PCG_Flag.VIOLATE_CONSTRAINTS)  # pragma: no cover
         pnew.shape = (n,)
 
         # 更新坐标点
@@ -148,7 +142,7 @@ def _impl(
         direct = z + beta * direct
 
     if numpy.max(numpy.abs(z)) < numpy.sqrt(_eps):
-        return (p, None, None, iter, PCG_Flag.RESIDUAL_CONVERGENCE)
+        return (p, direct, iter, PCG_Flag.RESIDUAL_CONVERGENCE)
     else:  # 残差始终不收敛的情形
         assert False  # pragma: no cover
 
@@ -194,14 +188,7 @@ def pcg(
 
     # 主循环
     p: Optional[ndarray]
-    p, direct, alpha, iter, exit_flag = _impl(g, H, constraints, delta)
-    if exit_flag == PCG_Flag.RESIDUAL_CONVERGENCE:
-        assert direct is None
-    else:
-        assert direct is not None
-        if exit_flag == PCG_Flag.NEGATIVE_CURVATURE:
-            assert alpha is None
-        else:
-            assert alpha is not None
-        p, exit_flag = subspace_decay(p, direct, delta, alpha, constraints, exit_flag)
+    p, direct, iter, exit_flag = _impl(g, H, constraints, delta)
+    if exit_flag != PCG_Flag.RESIDUAL_CONVERGENCE:
+        p, exit_flag = subspace_decay(p, direct, delta, constraints, exit_flag)
     return PCG_Status(p, fval(p), iter, exit_flag)
