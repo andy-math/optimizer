@@ -143,8 +143,8 @@ def _impl(
 
     if numpy.max(numpy.abs(z)) < numpy.sqrt(_eps):
         return (p, direct, iter, PCG_Flag.RESIDUAL_CONVERGENCE)
-
-    assert False  # pragma: no cover
+    else:  # 残差始终不收敛的情形
+        assert False  # pragma: no cover
 
 
 def _pcg_output_check(output: PCG_Status) -> None:
