@@ -257,8 +257,5 @@ def _best_policy(
         assert _direct is not None
         _p2, _exit2 = subspace_decay(g, H, _p1, _direct, delta, constraints, _exit1)
         ret2 = PCG_Status(_p2, fval(_p2), _iter, _exit2)
-        if _iter:
-            ret1 = _best_status(ret1, ret2)
-        else:
-            ret1 = ret2
+        ret1 = ret2 if not _iter else _best_status(ret1, ret2)
     return _best_status(ret1, ret0)
