@@ -140,8 +140,8 @@ def trust_region(
             ),
         )
         A, b, lb, ub = constraints
-        _constraints = (A, b - A @ x, lb - x, ub - x)
-        return new_grad, _constraints
+        _constr_shifted = (A, b - A @ x, lb - x, ub - x)
+        return new_grad, _constr_shifted
 
     def make_hess(x: ndarray) -> ndarray:
         nonlocal hessian_is_up_to_date, times_after_hessian_shaking
