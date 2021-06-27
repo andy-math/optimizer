@@ -22,19 +22,16 @@ def scale(g: ndarray, H: ndarray, x: ndarray, delta: float) -> ndarray:
     norm = math.sqrt(float(x @ x))
     if norm > 0:
         x = x / norm
+    gd = float(g @ x)
     dHd = float(x @ H @ x)
     if dHd > 0:
-        alpha = -float(g @ x) / dHd
+        alpha = -gd / dHd
         return min(alpha, delta) * x  # type: ignore
     else:
-        xmax, xmin = delta * x, (-delta) * x
-        vmax = float(g @ xmax + 0.5 * (xmax @ H @ xmax))
-        vmin = float(g @ xmin + 0.5 * (xmin @ H @ xmin))
-        assert vmax <= 0 or vmin <= 0  # 非凸情形下总有一侧是下降的
-        if vmax <= vmin:
-            return xmax  # type: ignore
+        if gd <= 0:
+            return delta * x  # type: ignore
         else:
-            return xmin  # type: ignore
+            return (-delta) * x  # type: ignore
 
 
 def subspace_decay(
