@@ -144,6 +144,10 @@ def _impl(
         inner1 = float(r.T @ z)
         beta: float = inner1 / inner2
         direct = z + beta * direct
+
+    if numpy.max(numpy.abs(z)) < numpy.sqrt(_eps):
+        return (p, direct, iter, PCG_Flag.RESIDUAL_CONVERGENCE)
+        
     assert False  # pragma: no cover
 
 
