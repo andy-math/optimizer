@@ -2,36 +2,18 @@
 from typing import Callable, NamedTuple, Optional, Tuple
 
 import numpy
-from numerical import difference, findiff, linneq
+from numerical import linneq
 from numerical.typedefs import ndarray
 from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN
 
 from optimizer import pcg
 from optimizer._internals.trust_region import format, options
+from optimizer._internals.trust_region.grad_maker import make_gradient, make_hessian
 
 Trust_Region_Format_T = format.Trust_Region_Format_T
 default_format = format.default_format
 Trust_Region_Options = options.Trust_Region_Options
-
-
-class Grad_Check_Failed(BaseException):
-    iter: int
-    checker: Optional[Callable[[ndarray, ndarray], float]]
-    analytic: ndarray
-    findiff_: ndarray
-
-    def __init__(
-        self,
-        iter: int,
-        checker: Callable[[ndarray, ndarray], float],
-        analytic: ndarray,
-        findiff_: ndarray,
-    ) -> None:
-        self.iter = iter
-        self.checker = checker
-        self.analytic = analytic
-        self.findiff_ = findiff_
 
 
 class Trust_Region_Result(NamedTuple):
@@ -101,13 +83,6 @@ def trust_region(
     def objective_ndarray(x: ndarray) -> ndarray:
         return numpy.array([objective(x)])
 
-    def grad_patch(x: ndarray, g: ndarray) -> ndarray:
-        if opts.border_abstol is not None:
-            lb, ub = constraints[-2:]
-            g[numpy.logical_and(x - lb < opts.border_abstol, g > 0)] = 0.0
-            g[numpy.logical_and(ub - x < opts.border_abstol, g < 0)] = 0.0
-        return g
-
     def output(
         iter: int,
         fval: float,
@@ -133,35 +108,20 @@ def trust_region(
                 print(output)
         _hess_shaked = False
 
-    def make_grad(
-        x: ndarray, iter: int, grad_infnorm: float, init_grad_infnorm: float
-    ) -> ndarray:
-        analytic = gradient(x)
-        while True:
-            if opts.check_abs is None:
-                if opts.check_iter is not None and iter > opts.check_iter:
-                    break
-                if grad_infnorm < init_grad_infnorm * opts.check_rel:
-                    break
-
-            findiff_ = findiff.findiff(objective_ndarray, x, constraints)
-            assert len(findiff_.shape) == 2 and findiff_.shape[0] == 1
-            findiff_.shape = (findiff_.shape[1],)
-
-            if difference.relative(analytic, findiff_) > opts.check_rel:
-                raise Grad_Check_Failed(iter, difference.relative, analytic, findiff_)
-            if opts.check_abs is not None:
-                if difference.absolute(analytic, findiff_) > opts.check_abs:
-                    raise Grad_Check_Failed(
-                        iter, difference.absolute, analytic, findiff_
-                    )
-            break
-        return grad_patch(x, analytic)
-
     def get_info(
         x: ndarray, iter: int, grad_infnorm: float, init_grad_infnorm: float
     ) -> Tuple[ndarray, float, Tuple[ndarray, ndarray, ndarray, ndarray]]:
-        new_grad = make_grad(x, iter, grad_infnorm, init_grad_infnorm)
+        new_grad = make_gradient(
+            gradient,
+            objective_ndarray,
+            x,
+            constraints,
+            iter,
+            grad_infnorm,
+            init_grad_infnorm,
+            opts,
+            check=True,
+        )
         grad_infnorm = numpy.max(numpy.abs(new_grad))
         A, b, lb, ub = constraints
         _constraints = (A, b - A @ x, lb - x, ub - x)
@@ -170,8 +130,16 @@ def trust_region(
     def make_hess(x: ndarray) -> ndarray:
         nonlocal _hess_is_up_to_date, shaking, _hess_shaked
         assert not _hess_is_up_to_date
-        H = findiff.findiff(lambda x: grad_patch(x, gradient(x)), x, constraints)
-        H = (H.T + H) / 2.0
+        H = make_hessian(
+            gradient,
+            objective_ndarray,
+            x,
+            constraints,
+            iter,
+            grad_infnorm,
+            init_grad_infnorm,
+            opts,
+        )
         _hess_is_up_to_date, _hess_shaked = True, True
         shaking = x.shape[0] if opts.shaking == "x.shape[0]" else opts.shaking
         return H
