@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import enum
-from typing import NamedTuple, Optional, Tuple
+import math
+from typing import Optional, Tuple
 
 import numpy
 from numerical.linneq import check, constraint_check, margin
@@ -19,11 +20,25 @@ class PCG_Flag(enum.Enum):
     VIOLATE_CONSTRAINTS = enum.auto()
 
 
-class PCG_Status(NamedTuple):
+class PCG_Status:
     x: Optional[ndarray]
     fval: Optional[float]
     iter: int
     flag: PCG_Flag
+    size: Optional[float]
+
+    def __init__(
+        self,
+        x: Optional[ndarray],
+        fval: Optional[float],
+        iter: int,
+        flag: PCG_Flag,
+    ) -> None:
+        self.x = x
+        self.fval = fval
+        self.iter = iter
+        self.flag = flag
+        self.size = None if x is None else math.sqrt(float(x @ x))
 
 
 def _input_check(
@@ -137,13 +152,12 @@ def _impl(
 
 
 def _pcg_output_check(output: PCG_Status) -> None:
-    p, qpval, _, _ = output
-    if p is not None:
-        assert qpval is not None
-        assertNoInfNaN(p)
-        assertNoInfNaN_float(qpval)
+    if output.x is not None:
+        assert output.fval is not None
+        assertNoInfNaN(output.x)
+        assertNoInfNaN_float(output.fval)
     else:
-        assert qpval is None
+        assert output.fval is None
 
 
 N = dyn_typing.SizeVar()

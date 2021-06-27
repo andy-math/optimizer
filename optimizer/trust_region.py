@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import math
 from typing import Callable, NamedTuple, Optional, Tuple
 
 import numpy
@@ -19,6 +20,16 @@ from optimizer._internals.trust_region.grad_maker import (
 Trust_Region_Format_T = format.Trust_Region_Format_T
 default_format = format.default_format
 Trust_Region_Options = options.Trust_Region_Options
+
+
+class Trust_Region_Status(NamedTuple):
+    iter: int
+    x: ndarray
+    fval: float
+    grad: Gradient
+    hessian: ndarray
+    step_size: float
+    pcg_status: Optional[pcg.PCG_Status]
 
 
 class Trust_Region_Result(NamedTuple):
@@ -64,7 +75,7 @@ nConstraint = dyn_typing.SizeVar()
             (
                 dyn_typing.NDArray(numpy.float64, (nConstraint, N)),
                 dyn_typing.NDArray(numpy.float64, (nConstraint,)),
-                dyn_typing.NDArray(numpy.float64, (N,)),  # force line wrap
+                dyn_typing.NDArray(numpy.float64, (N,)),
                 dyn_typing.NDArray(numpy.float64, (N,)),
             )
         ),
@@ -91,7 +102,6 @@ def trust_region(
     def output(
         iter: int,
         fval: float,
-        step_size: float,
         grad_infnorm: float,
         pcg_status: Optional[pcg.PCG_Status],
         hessian: ndarray,
@@ -101,11 +111,15 @@ def trust_region(
             output = opts.format(
                 iter=iter,
                 fval=fval,
-                step=step_size,
+                step=(
+                    math.nan
+                    if pcg_status is None or pcg_status.size is None
+                    else pcg_status.size
+                ),
                 grad=grad_infnorm,
-                CGiter=pcg_status.iter if pcg_status is not None else 0,
-                CGexit=pcg_status.flag.name if pcg_status is not None else "None",
-                posdef=opts.posdef(hessian) if opts.posdef is not None else "",
+                CGiter=0 if pcg_status is None else pcg_status.iter,
+                CGexit="None" if pcg_status is None else pcg_status.flag.name,
+                posdef="" if opts.posdef is None else opts.posdef(hessian),
                 shaking="Shaking" if _hess_shaked else "       ",
             )
             if output is not None:
@@ -148,7 +162,7 @@ def trust_region(
     fval = objective(x)
     grad, _constr_shifted = get_info(x, iter, numpy.inf, 0.0)
     H = make_hess(x)
-    output(iter, fval, numpy.nan, grad.infnorm, None, H)
+    output(iter, fval, grad.infnorm, None, H)
 
     init_grad_infnorm = grad.infnorm
     old_fval, stall_iter = fval, 0
@@ -175,13 +189,13 @@ def trust_region(
                 delta /= 4.0
             else:
                 H = make_hess(x)
-            output(iter, fval, numpy.nan, grad.infnorm, pcg_status, H)
+            output(iter, fval, grad.infnorm, pcg_status, H)
             continue
 
         assert pcg_status.fval is not None
+        assert pcg_status.size is not None
 
         # 更新步长、试探点、试探函数值
-        step_size: float = float(numpy.linalg.norm(pcg_status.x))  # type: ignore
         new_x: ndarray = x + pcg_status.x
         new_fval: float = objective(new_x)
 
@@ -192,11 +206,11 @@ def trust_region(
             if reduce >= 0
             else (1 if reduce <= pcg_status.fval else reduce / pcg_status.fval)
         )
-        if ratio >= 0.75 and step_size >= 0.9 * delta:
+        if ratio >= 0.75 and pcg_status.size >= 0.9 * delta:
             delta *= 2
         elif ratio <= 0.25:
             if _hess_is_up_to_date:
-                delta = step_size / 4.0
+                delta = pcg_status.size / 4.0
             else:
                 H = make_hess(x)
 
@@ -209,14 +223,14 @@ def trust_region(
             else:
                 old_fval, stall_iter = fval, 0
 
-        output(iter, fval, step_size, grad.infnorm, pcg_status, H)
+        output(iter, fval, grad.infnorm, pcg_status, H)
 
         # 成功收敛准则
         if pcg_status.flag == pcg.PCG_Flag.RESIDUAL_CONVERGENCE:  # PCG正定收敛
             if _hess_is_up_to_date:
                 if grad.infnorm < opts.tol_grad:  # 梯度足够小
                     return Trust_Region_Result(x, iter, delta, grad, success=True)
-                if step_size < opts.tol_step:  # 步长足够小
+                if pcg_status.size < opts.tol_step:  # 步长足够小
                     return Trust_Region_Result(x, iter, delta, grad, success=True)
             else:
                 H = make_hess(x)

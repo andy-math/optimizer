@@ -23,4 +23,4 @@ class Trust_Region_Options:
     def __init__(self, *, max_iter: int) -> None:
         self.max_iter = max_iter
         self.format = format.default_format
-        self.posdef = lambda H: "-*- ill -*-" if not isposdef(H) else ""
+        self.posdef = lambda H: "-*- ill -*-" if not isposdef(H) else "           "
