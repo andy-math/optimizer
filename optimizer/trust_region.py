@@ -10,6 +10,7 @@ from overloads.shortcuts import assertNoInfNaN
 from optimizer import pcg
 from optimizer._internals.trust_region import format, options
 from optimizer._internals.trust_region.grad_maker import (
+    Gradient,
     GradientCheck,
     make_gradient,
     make_hessian,
@@ -24,7 +25,7 @@ class Trust_Region_Result(NamedTuple):
     x: ndarray
     iter: int
     delta: float
-    gradient: ndarray
+    gradient: Gradient
     success: bool
 
 
@@ -114,7 +115,7 @@ def trust_region(
 
     def get_info(
         x: ndarray, iter: int, grad_infnorm: float, init_grad_infnorm: float
-    ) -> Tuple[ndarray, float, Tuple[ndarray, ndarray, ndarray, ndarray]]:
+    ) -> Tuple[Gradient, Tuple[ndarray, ndarray, ndarray, ndarray]]:
         new_grad = make_gradient(
             gradient,
             x,
@@ -124,10 +125,9 @@ def trust_region(
                 objective_ndarray, iter, grad_infnorm, init_grad_infnorm
             ),
         )
-        grad_infnorm = numpy.max(numpy.abs(new_grad))
         A, b, lb, ub = constraints
         _constraints = (A, b - A @ x, lb - x, ub - x)
-        return new_grad, grad_infnorm, _constraints
+        return new_grad, _constraints
 
     def make_hess(x: ndarray) -> ndarray:
         nonlocal _hess_is_up_to_date, shaking, _hess_shaked
@@ -142,17 +142,17 @@ def trust_region(
     assert linneq.check(x.reshape(-1, 1), constraints)
 
     fval: float
-    grad: ndarray
+    grad: Gradient
     grad_infnorm: float
     H: ndarray
     _constraints: Tuple[ndarray, ndarray, ndarray, ndarray]
 
     fval = objective(x)
-    grad, grad_infnorm, _constraints = get_info(x, iter, numpy.inf, 0.0)
+    grad, _constraints = get_info(x, iter, numpy.inf, 0.0)
     H = make_hess(x)
-    output(iter, fval, numpy.nan, grad_infnorm, None, None, H)
+    output(iter, fval, numpy.nan, grad.infnorm, None, None, H)
 
-    init_grad_infnorm = grad_infnorm
+    init_grad_infnorm = grad.infnorm
     old_fval, stall_iter = fval, 0
     while True:
         # 失败情形的截止条件放在最前是因为pcg失败时的continue会导致后面代码被跳过
@@ -173,7 +173,7 @@ def trust_region(
         qpval: Optional[float]
         pcg_iter: int
         exit_flag: pcg.PCG_EXIT_FLAG
-        step, qpval, pcg_iter, exit_flag = pcg.pcg(grad, H, _constraints, delta)
+        step, qpval, pcg_iter, exit_flag = pcg.pcg(grad.value, H, _constraints, delta)
         iter, shaking = iter + 1, shaking - 1
 
         if step is None:
@@ -181,7 +181,7 @@ def trust_region(
                 delta /= 4.0
             else:
                 H = make_hess(x)
-            output(iter, fval, numpy.nan, grad_infnorm, pcg_iter, exit_flag, H)
+            output(iter, fval, numpy.nan, grad.infnorm, pcg_iter, exit_flag, H)
             continue
 
         assert qpval is not None
@@ -205,20 +205,18 @@ def trust_region(
         # 对符合下降要求的候选点进行更新
         if new_fval < fval:
             x, fval, _hess_is_up_to_date = new_x, new_fval, False
-            grad, grad_infnorm, _constraints = get_info(
-                x, iter, grad_infnorm, init_grad_infnorm
-            )
+            grad, _constraints = get_info(x, iter, grad.infnorm, init_grad_infnorm)
             if opts.abstol_fval is not None and old_fval - fval < opts.abstol_fval:
                 stall_iter += 1
             else:
                 old_fval, stall_iter = fval, 0
 
-        output(iter, fval, step_size, grad_infnorm, pcg_iter, exit_flag, H)
+        output(iter, fval, step_size, grad.infnorm, pcg_iter, exit_flag, H)
 
         # 成功收敛准则
         if exit_flag == pcg.PCG_EXIT_FLAG.RESIDUAL_CONVERGENCE:  # PCG正定收敛
             if _hess_is_up_to_date:
-                if grad_infnorm < opts.tol_grad:  # 梯度足够小
+                if grad.infnorm < opts.tol_grad:  # 梯度足够小
                     return Trust_Region_Result(x, iter, delta, grad, success=True)
                 if step_size < opts.tol_step:  # 步长足够小
                     return Trust_Region_Result(x, iter, delta, grad, success=True)
