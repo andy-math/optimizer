@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import math
-from typing import Callable, NamedTuple, Optional, Tuple
+from typing import Callable, Final, NamedTuple, Optional, Tuple
 
 import numpy
 from numerical import linneq
@@ -28,8 +28,9 @@ class Trust_Region_Status(NamedTuple):
     fval: float
     grad: Gradient
     hessian: ndarray
-    step_size: float
     pcg_status: Optional[pcg.PCG_Status]
+    delta: float
+    internals_constr_shifted: Tuple[ndarray, ndarray, ndarray, ndarray]
 
 
 class Trust_Region_Result(NamedTuple):
@@ -92,9 +93,11 @@ def trust_region(
     opts: Trust_Region_Options,
 ) -> Trust_Region_Result:
 
-    _hess_is_up_to_date: bool = False
-    _hess_shaked: bool = False
-    shaking: int = 0
+    hessian_shaking: Final[int] = (
+        x.shape[0] if opts.shaking == "x.shape[0]" else opts.shaking
+    )
+    times_after_hessian_shaking = 0
+    hessian_is_up_to_date: bool = False
 
     def objective_ndarray(x: ndarray) -> ndarray:
         return numpy.array([objective(x)])
@@ -106,7 +109,6 @@ def trust_region(
         pcg_status: Optional[pcg.PCG_Status],
         hessian: ndarray,
     ) -> None:
-        nonlocal _hess_shaked
         if opts.format is not None:
             output = opts.format(
                 iter=iter,
@@ -120,11 +122,10 @@ def trust_region(
                 CGiter=0 if pcg_status is None else pcg_status.iter,
                 CGexit="None" if pcg_status is None else pcg_status.flag.name,
                 posdef="" if opts.posdef is None else opts.posdef(hessian),
-                shaking="Shaking" if _hess_shaked else "       ",
+                shaking="Shaking" if times_after_hessian_shaking == 0 else "       ",
             )
             if output is not None:
                 print(output)
-        _hess_shaked = False
 
     def get_info(
         x: ndarray, iter: int, grad_infnorm: float, init_grad_infnorm: float
@@ -143,11 +144,11 @@ def trust_region(
         return new_grad, _constraints
 
     def make_hess(x: ndarray) -> ndarray:
-        nonlocal _hess_is_up_to_date, shaking, _hess_shaked
-        assert not _hess_is_up_to_date
+        nonlocal hessian_is_up_to_date, times_after_hessian_shaking
+        assert not hessian_is_up_to_date
         H = make_hessian(gradient, x, constraints, opts)
-        _hess_is_up_to_date, _hess_shaked = True, True
-        shaking = x.shape[0] if opts.shaking == "x.shape[0]" else opts.shaking
+        hessian_is_up_to_date = True
+        times_after_hessian_shaking = 0
         return H
 
     iter: int = 0
@@ -177,15 +178,17 @@ def trust_region(
                 x, iter, delta, grad, success=False
             )  # pragma: no cover
 
-        if shaking <= 0 and not _hess_is_up_to_date:
+        if times_after_hessian_shaking >= hessian_shaking and not hessian_is_up_to_date:
+            assert times_after_hessian_shaking == hessian_shaking
             H = make_hess(x)
 
         # PCG
         pcg_status = pcg.pcg(grad.value, H, _constr_shifted, delta)
-        iter, shaking = iter + 1, shaking - 1
+        iter += 1
+        times_after_hessian_shaking += 1
 
         if pcg_status.x is None:
-            if _hess_is_up_to_date:
+            if hessian_is_up_to_date:
                 delta /= 4.0
             else:
                 H = make_hess(x)
@@ -209,14 +212,14 @@ def trust_region(
         if ratio >= 0.75 and pcg_status.size >= 0.9 * delta:
             delta *= 2
         elif ratio <= 0.25:
-            if _hess_is_up_to_date:
+            if hessian_is_up_to_date:
                 delta = pcg_status.size / 4.0
             else:
                 H = make_hess(x)
 
         # 对符合下降要求的候选点进行更新
         if new_fval < fval:
-            x, fval, _hess_is_up_to_date = new_x, new_fval, False
+            x, fval, hessian_is_up_to_date = new_x, new_fval, False
             grad, _constr_shifted = get_info(x, iter, grad.infnorm, init_grad_infnorm)
             if opts.abstol_fval is not None and old_fval - fval < opts.abstol_fval:
                 stall_iter += 1
@@ -227,7 +230,7 @@ def trust_region(
 
         # 成功收敛准则
         if pcg_status.flag == pcg.PCG_Flag.RESIDUAL_CONVERGENCE:  # PCG正定收敛
-            if _hess_is_up_to_date:
+            if hessian_is_up_to_date:
                 if grad.infnorm < opts.tol_grad:  # 梯度足够小
                     return Trust_Region_Result(x, iter, delta, grad, success=True)
                 if pcg_status.size < opts.tol_step:  # 步长足够小
@@ -236,7 +239,7 @@ def trust_region(
                 H = make_hess(x)
 
         if opts.max_stall_iter is not None and stall_iter >= opts.max_stall_iter:
-            if _hess_is_up_to_date:
+            if hessian_is_up_to_date:
                 return Trust_Region_Result(x, iter, delta, grad, success=True)
             else:
                 H = make_hess(x)
