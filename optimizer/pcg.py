@@ -47,10 +47,13 @@ def _input_check(
     assertNoInfNaN_float(delta)
 
 
-def _impl_output_check(output: Tuple[ndarray, ndarray, int, PCG_Flag]) -> None:
+def _impl_output_check(
+    output: Tuple[ndarray, Optional[ndarray], int, PCG_Flag]
+) -> None:
     p, direct, _, _ = output
     assertNoInfNaN(p)
-    assertNoInfNaN(direct)
+    if direct is not None:
+        assertNoInfNaN(direct)
 
 
 N = dyn_typing.SizeVar()
@@ -74,7 +77,7 @@ nConstraints = dyn_typing.SizeVar()
     output=dyn_typing.Tuple(
         (
             dyn_typing.NDArray(numpy.float64, (N,)),
-            dyn_typing.NDArray(numpy.float64, (N,)),
+            dyn_typing.Optional(dyn_typing.NDArray(numpy.float64, (N,))),
             dyn_typing.Int(),
             dyn_typing.Class(PCG_Flag),
         )
@@ -86,7 +89,7 @@ def _impl(
     H: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
-) -> Tuple[ndarray, ndarray, int, PCG_Flag]:
+) -> Tuple[ndarray, Optional[ndarray], int, PCG_Flag]:
 
     # 取 max{ l2norm(col(H)), sqrt(eps) }
     # 预条件子 M = C.T @ C == diag(R)
@@ -142,7 +145,7 @@ def _impl(
         direct = z + beta * direct
 
     if numpy.max(numpy.abs(z)) < numpy.sqrt(_eps):
-        return (p, direct, iter, PCG_Flag.RESIDUAL_CONVERGENCE)
+        return (p, None, iter, PCG_Flag.RESIDUAL_CONVERGENCE)
     else:  # 残差始终不收敛的情形
         assert False  # pragma: no cover
 
@@ -189,6 +192,9 @@ def pcg(
     # 主循环
     p: Optional[ndarray]
     p, direct, iter, exit_flag = _impl(g, H, constraints, delta)
-    if exit_flag != PCG_Flag.RESIDUAL_CONVERGENCE:
+    if exit_flag == PCG_Flag.RESIDUAL_CONVERGENCE:
+        assert direct is None
+    else:
+        assert direct is not None
         p, exit_flag = subspace_decay(p, direct, delta, constraints, exit_flag)
     return PCG_Status(p, fval(p), iter, exit_flag)
