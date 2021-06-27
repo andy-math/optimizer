@@ -200,7 +200,7 @@ def pcg(
         g,
         H,
         numpy.zeros(g.shape),
-        numpy.linalg.lstsq(H, -g, rcond=None),  # type: ignore
+        numpy.linalg.lstsq(H, -g, rcond=None)[0],  # type: ignore
         delta,
         constraints,
         PCG_Flag.POLICY_ONLY,
