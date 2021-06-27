@@ -144,10 +144,10 @@ def trust_region(
     fval: float
     grad: Gradient
     H: ndarray
-    _constraints: Tuple[ndarray, ndarray, ndarray, ndarray]
+    _constr_shifted: Tuple[ndarray, ndarray, ndarray, ndarray]
 
     fval = objective(x)
-    grad, _constraints = get_info(x, iter, numpy.inf, 0.0)
+    grad, _constr_shifted = get_info(x, iter, numpy.inf, 0.0)
     H = make_hess(x)
     output(iter, fval, numpy.nan, grad.infnorm, None, None, H)
 
@@ -172,7 +172,9 @@ def trust_region(
         qpval: Optional[float]
         pcg_iter: int
         exit_flag: pcg.PCG_EXIT_FLAG
-        step, qpval, pcg_iter, exit_flag = pcg.pcg(grad.value, H, _constraints, delta)
+        step, qpval, pcg_iter, exit_flag = pcg.pcg(
+            grad.value, H, _constr_shifted, delta
+        )
         iter, shaking = iter + 1, shaking - 1
 
         if step is None:
@@ -204,7 +206,7 @@ def trust_region(
         # 对符合下降要求的候选点进行更新
         if new_fval < fval:
             x, fval, _hess_is_up_to_date = new_x, new_fval, False
-            grad, _constraints = get_info(x, iter, grad.infnorm, init_grad_infnorm)
+            grad, _constr_shifted = get_info(x, iter, grad.infnorm, init_grad_infnorm)
             if opts.abstol_fval is not None and old_fval - fval < opts.abstol_fval:
                 stall_iter += 1
             else:
