@@ -84,7 +84,7 @@ nConstraints = dyn_typing.SizeVar()
     ),
 )
 @bind_checker.bind_checker_4(input=_input_check, output=_impl_output_check)
-def _impl(
+def _implimentation(
     g: ndarray,
     H: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
@@ -188,7 +188,7 @@ def pcg(
 
     # 主循环
     p: Optional[ndarray]
-    p, direct, iter, exit_flag = _impl(g, H, constraints, delta)
+    p, direct, iter, exit_flag = _implimentation(g, H, constraints, delta)
     if exit_flag == PCG_Flag.RESIDUAL_CONVERGENCE:
         assert direct is None
     else:
