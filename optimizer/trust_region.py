@@ -1,31 +1,18 @@
 # -*- coding: utf-8 -*-
-from typing import Callable, Dict, List, Literal, NamedTuple, Optional, Tuple, Union
+from typing import Callable, NamedTuple, Optional, Tuple
 
 import numpy
-from mypy_extensions import NamedArg
 from numerical import difference, findiff, linneq
-from numerical.isposdef import isposdef
 from numerical.typedefs import ndarray
 from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN
 
 from optimizer import pcg
+from optimizer._internals.trust_region import format, options
 
-Trust_Region_Format_T = Optional[
-    Callable[
-        [
-            NamedArg(int, "iter"),
-            NamedArg(float, "fval"),  # noqa: F821
-            NamedArg(float, "step"),  # noqa: F821
-            NamedArg(float, "grad"),  # noqa: F821
-            NamedArg(int, "CGiter"),  # noqa: F821
-            NamedArg(str, "CGexit"),  # noqa: F821
-            NamedArg(str, "posdef"),  # noqa: F821
-            NamedArg(Literal["Shaking", "       "], "shaking"),  # noqa: F821
-        ],
-        Optional[str],
-    ]
-]
+Trust_Region_Format_T = format.Trust_Region_Format_T
+default_format = format.default_format
+Trust_Region_Options = options.Trust_Region_Options
 
 
 class Grad_Check_Failed(BaseException):
@@ -45,70 +32,6 @@ class Grad_Check_Failed(BaseException):
         self.checker = checker
         self.analytic = analytic
         self.findiff_ = findiff_
-
-
-_default_format_times: int = 0
-_default_format_width: Dict[str, int] = {}
-
-
-def default_format(
-    *,
-    iter: int,
-    fval: float,
-    step: float,
-    grad: float,
-    CGiter: int,
-    CGexit: str,
-    posdef: str,
-    shaking: Literal["Shaking", "       "],
-) -> str:
-    global _default_format_width, _default_format_times
-    data = {
-        "Iter": f"{iter: 5d}",
-        "F-Val": f"{fval: 10.8g}",
-        "Step": f"{step:13.6g}",
-        "Grad": f"{grad:6.4g}",
-        "CG": f"{CGiter:2d}",
-        "CG Exit": CGexit,
-        "is Posdef": posdef,
-        "Hessian": shaking,
-    }
-    output: List[str] = []
-    for k, v in data.items():
-        _width = _default_format_width.get(k, 0)
-        _width = max(_width, max(len(k), len(v)))
-        output.append(" " * (_width - len(v)) + v)
-        _default_format_width[k] = _width
-    _output = "  ".join(output)
-    if _default_format_times % 20 == 0:
-        label: List[str] = []
-        for k in data:
-            _width = _default_format_width[k]
-            label.append(" " * (_width - len(k)) + k)
-        _output = "\n" + "  ".join(label) + "\n\n" + _output
-    _default_format_times += 1
-    return _output
-
-
-class Trust_Region_Options:
-    border_abstol: Optional[float] = None
-    tol_step: float = 1.0e-10
-    tol_grad: float = 1.0e-6
-    abstol_fval: Optional[float] = None
-    max_stall_iter: Optional[int] = None
-    init_delta: float = 1.0
-    max_iter: int
-    check_rel: float = 1.0e-2
-    check_abs: Optional[float] = None
-    check_iter: Optional[int] = None  # 0表示只在最优化开始前进行一次梯度检查，-1表示完全关闭检查，默认的None表示始终进行检查
-    shaking: Union[Literal["x.shape[0]"], int] = "x.shape[0]"
-    format: Trust_Region_Format_T
-    posdef: Optional[Callable[[ndarray], str]]
-
-    def __init__(self, *, max_iter: int) -> None:
-        self.max_iter = max_iter
-        self.format = default_format
-        self.posdef = lambda H: "-*- ill -*-" if not isposdef(H) else ""
 
 
 class Trust_Region_Result(NamedTuple):
