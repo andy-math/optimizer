@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import math
+
 from typing import Callable, Final, NamedTuple, Optional, Tuple
 
 import numpy
@@ -9,7 +9,7 @@ from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN
 
 from optimizer import pcg
-from optimizer._internals.trust_region import format, options
+from optimizer._internals.trust_region import options
 from optimizer._internals.trust_region.grad_maker import (
     Gradient,
     GradientCheck,
@@ -17,8 +17,8 @@ from optimizer._internals.trust_region.grad_maker import (
     make_hessian,
 )
 
-Trust_Region_Format_T = format.Trust_Region_Format_T
-default_format = format.default_format
+Trust_Region_Format_T = options.Trust_Region_Format_T
+default_format = options.default_format
 Trust_Region_Options = options.Trust_Region_Options
 
 
@@ -102,31 +102,6 @@ def trust_region(
     def objective_ndarray(x: ndarray) -> ndarray:
         return numpy.array([objective(x)])
 
-    def output(
-        iter: int,
-        fval: float,
-        grad_infnorm: float,
-        pcg_status: Optional[pcg.PCG_Status],
-        hessian: ndarray,
-    ) -> None:
-        if opts.format is not None:
-            output = opts.format(
-                iter=iter,
-                fval=fval,
-                step=(
-                    math.nan
-                    if pcg_status is None or pcg_status.size is None
-                    else pcg_status.size
-                ),
-                grad=grad_infnorm,
-                CGiter=0 if pcg_status is None else pcg_status.iter,
-                CGexit="None" if pcg_status is None else pcg_status.flag.name,
-                posdef="" if opts.posdef is None else opts.posdef(hessian),
-                shaking="Shaking" if times_after_hessian_shaking == 0 else "       ",
-            )
-            if output is not None:
-                print(output)
-
     def get_info(
         x: ndarray, iter: int, grad_infnorm: float, init_grad_infnorm: float
     ) -> Tuple[Gradient, Tuple[ndarray, ndarray, ndarray, ndarray]]:
@@ -163,7 +138,7 @@ def trust_region(
     fval = objective(x)
     grad, _constr_shifted = get_info(x, iter, numpy.inf, 0.0)
     H = make_hess(x)
-    output(iter, fval, grad.infnorm, None, H)
+    options.output(iter, fval, grad.infnorm, None, H, opts, times_after_hessian_shaking)
 
     init_grad_infnorm = grad.infnorm
     old_fval, stall_iter = fval, 0
@@ -191,7 +166,15 @@ def trust_region(
                 delta /= 4.0
             else:
                 H = make_hess(x)
-            output(iter, fval, grad.infnorm, pcg_status, H)
+            options.output(
+                iter,
+                fval,
+                grad.infnorm,
+                pcg_status,
+                H,
+                opts,
+                times_after_hessian_shaking,
+            )
             continue
 
         assert pcg_status.fval is not None
@@ -225,7 +208,9 @@ def trust_region(
             else:
                 old_fval, stall_iter = fval, 0
 
-        output(iter, fval, grad.infnorm, pcg_status, H)
+        options.output(
+            iter, fval, grad.infnorm, pcg_status, H, opts, times_after_hessian_shaking
+        )
 
         # 成功收敛准则
         if pcg_status.flag == pcg.PCG_Flag.RESIDUAL_CONVERGENCE:  # PCG正定收敛
