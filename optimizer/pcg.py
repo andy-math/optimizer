@@ -12,6 +12,7 @@ from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
 
 from optimizer._internals.pcg import flags
 from optimizer._internals.pcg.policies import subspace_decay
+from optimizer._internals.pcg.precondition import hessian_precon
 
 PCG_Flag = flags.PCG_Flag
 
@@ -37,12 +38,15 @@ class PCG_Status:
         self.size = None if x is None else math.sqrt(float(x @ x))
 
 
-def _input_check(
-    input: Tuple[ndarray, ndarray, Tuple[ndarray, ndarray, ndarray, ndarray], float]
+def _impl_input_check(
+    input: Tuple[
+        ndarray, ndarray, ndarray, Tuple[ndarray, ndarray, ndarray, ndarray], float
+    ]
 ) -> None:
-    g, H, constraints, delta = input
+    g, H, R, constraints, delta = input
     assertNoInfNaN(g)
     assertNoInfNaN(H)
+    assertNoInfNaN(R)
     constraint_check(constraints)
     assertNoInfNaN_float(delta)
 
@@ -60,10 +64,11 @@ N = dyn_typing.SizeVar()
 nConstraints = dyn_typing.SizeVar()
 
 
-@dyn_typing.dyn_check_4(
+@dyn_typing.dyn_check_5(
     input=(
         dyn_typing.NDArray(numpy.float64, (N,)),
         dyn_typing.NDArray(numpy.float64, (N, N)),
+        dyn_typing.NDArray(numpy.float64, (N,)),
         dyn_typing.Tuple(
             (
                 dyn_typing.NDArray(numpy.float64, (nConstraints, N)),
@@ -83,20 +88,15 @@ nConstraints = dyn_typing.SizeVar()
         )
     ),
 )
-@bind_checker.bind_checker_4(input=_input_check, output=_impl_output_check)
+@bind_checker.bind_checker_5(input=_impl_input_check, output=_impl_output_check)
 def _implimentation(
     g: ndarray,
     H: ndarray,
+    R: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
 ) -> Tuple[ndarray, Optional[ndarray], int, PCG_Flag]:
-
-    # 取 max{ l2norm(col(H)), sqrt(eps) }
-    # 预条件子 M = C.T @ C == diag(R)
-    # 其中 H === H.T  =>  norm(col(H)) === norm(row(H))
     _eps = float(numpy.finfo(numpy.float64).eps)
-    dnrms: ndarray = numpy.sqrt(numpy.sum(H * H, axis=1))
-    R: ndarray = numpy.maximum(dnrms, numpy.sqrt(numpy.array([_eps])))
 
     (n,) = g.shape
     p: ndarray = numpy.zeros((n,))  # 目标点
@@ -147,6 +147,16 @@ def _implimentation(
     return (p, None, iter, PCG_Flag.RESIDUAL_CONVERGENCE)
 
 
+def _pcg_input_check(
+    input: Tuple[ndarray, ndarray, Tuple[ndarray, ndarray, ndarray, ndarray], float]
+) -> None:
+    g, H, constraints, delta = input
+    assertNoInfNaN(g)
+    assertNoInfNaN(H)
+    constraint_check(constraints)
+    assertNoInfNaN_float(delta)
+
+
 def _pcg_output_check(output: PCG_Status) -> None:
     if output.x is not None:
         assert output.fval is not None
@@ -176,7 +186,7 @@ nConstraints = dyn_typing.SizeVar()
     ),
     output=dyn_typing.Class(PCG_Status),
 )
-@bind_checker.bind_checker_4(input=_input_check, output=_pcg_output_check)
+@bind_checker.bind_checker_4(input=_pcg_input_check, output=_pcg_output_check)
 def pcg(
     g: ndarray,
     H: ndarray,
@@ -188,7 +198,9 @@ def pcg(
 
     # 主循环
     p: Optional[ndarray]
-    p, direct, iter, exit_flag = _implimentation(g, H, constraints, delta)
+    p, direct, iter, exit_flag = _implimentation(
+        g, H, hessian_precon(H), constraints, delta
+    )
     if exit_flag == PCG_Flag.RESIDUAL_CONVERGENCE:
         assert direct is None
     else:
