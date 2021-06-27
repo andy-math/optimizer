@@ -196,5 +196,5 @@ def pcg(
         assert direct is None
     else:
         assert direct is not None
-        p, exit_flag = subspace_decay(p, direct, delta, constraints, exit_flag)
+        p, exit_flag = subspace_decay(g, H, p, direct, delta, constraints, exit_flag)
     return PCG_Status(p, fval(p), iter, exit_flag)
