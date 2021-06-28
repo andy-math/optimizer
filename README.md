@@ -44,10 +44,7 @@ result = trust_region.trust_region(
     func,
     grad,
     numpy.array([-1.9, 2]),
-    constr_A,
-    constr_b,
-    constr_lb,
-    constr_ub,
+    (constr_A, constr_b, constr_lb, constr_ub),
     opts,
 )
 print(result.success, result.x)
@@ -90,10 +87,7 @@ result = trust_region.trust_region(
     func,
     grad,
     numpy.array([9.5]),
-    constr_A,
-    constr_b,
-    constr_lb,
-    constr_ub,
+    (constr_A, constr_b, constr_lb, constr_ub),
     opts,
 )
 print(result.success, result.x)
