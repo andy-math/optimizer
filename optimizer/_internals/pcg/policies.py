@@ -50,7 +50,7 @@ def subspace_decay(
     g = g + H @ _base  # scale patch
 
     # 勾股定理求出内接于大圆信赖域的、以base为圆心的小圆信赖域半径
-    delta = math.sqrt(delta * delta - float(_base @ _base))
+    delta = math.sqrt(delta * delta) - math.sqrt(float(_base @ _base))
 
     # 如果小圆信赖域太小，或者sqrt(negative) -> NaN
     # （在浮点误差的情况下会这样），直接返回，啥也不做
