@@ -66,7 +66,6 @@ def subspace_decay(
     lb, ub = margin(_base, constraints)  # 求出base处的约束切面上下限
     eliminated = numpy.zeros(direct.shape, dtype=numpy.bool_)  # 初始化越界表
     while True:
-        _e = eliminated.copy()
         # 更新越界表
         eliminated[numpy.logical_or(direct < lb, ub < direct)] = True
         # 对越界（过）的维度折半衰减
@@ -76,8 +75,8 @@ def subspace_decay(
         # 如果满足全部在界内，那么退出折半衰减
         if numpy.all(numpy.logical_and(lb <= direct, direct <= ub)):
             break
-        # 如果收敛，也退出折半衰减
-        if numpy.all(eliminated == _e):
+        # 如果全部都越界，也退出折半衰减
+        if numpy.all(eliminated):
             break
 
     base = _base + direct
