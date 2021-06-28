@@ -30,7 +30,7 @@ def scale(g: ndarray, H: ndarray, _x: ndarray, delta: float) -> ndarray:
     dHd = float(x @ H @ x)
     if dHd > 0:
         alpha = -gd / dHd
-        return min(alpha, delta) * x  # type: ignore
+        return numpy.sign(alpha) * min(math.fabs(alpha), delta) * x  # type: ignore
     else:
         if gd <= 0:
             return delta * x  # type: ignore

@@ -153,6 +153,7 @@ def trust_region(
 
         assert pcg_status.fval is not None
         assert pcg_status.size is not None
+        assert pcg_status.size / delta < 1.0 + 1e-6
 
         # 更新步长、试探点、试探函数值
         new_x: ndarray = x + pcg_status.x
