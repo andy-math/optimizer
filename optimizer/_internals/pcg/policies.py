@@ -65,14 +65,8 @@ def subspace_decay(
     direct = scale(g, H, _direct, delta)  # 使用精确的二次型方法确定最优缩放尺度
     lb, ub = margin(_base, constraints)  # 求出base处的约束切面上下限
 
-    # 如果约束与前进方向异号，直接返回base，啥也不做
-    if numpy.any(numpy.logical_and(_direct > ub, _direct * ub <= 0)) or numpy.any(
-        numpy.logical_and(_direct < lb, _direct * lb <= 0)
-    ):
-        return _base, exit_flag
-
     eliminated = numpy.zeros(direct.shape, dtype=numpy.bool_)  # 初始化越界表
-    while True:
+    for _ in range(direct.shape[0]):
         # 更新越界表
         eliminated[numpy.logical_or(direct < lb, ub < direct)] = True
         # 对越界（过）的维度折半衰减
