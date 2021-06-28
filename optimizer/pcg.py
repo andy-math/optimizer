@@ -30,12 +30,15 @@ class PCG_Status:
         fval: Optional[float],
         iter: int,
         flag: PCG_Flag,
+        delta: float,
     ) -> None:
         self.x = x
         self.fval = fval
         self.iter = iter
         self.flag = flag
         self.size = None if x is None else math.sqrt(float(x @ x))
+        if self.size is not None:
+            assert self.size / delta < 1.0 + 1e-6
 
 
 def _impl_input_check(
@@ -205,7 +208,7 @@ def pcg(
         constraints,
         PCG_Flag.POLICY_ONLY,
     )
-    ret0 = PCG_Status(_p0, fval(_p0), 0, _exit0)
+    ret0 = PCG_Status(_p0, fval(_p0), 0, _exit0, delta)
     ret1 = _best_policy(g, H, hessian_precon(H), constraints, delta)
     ret2 = _best_policy(g, H, gradient_precon(g), constraints, delta)
 
@@ -246,16 +249,16 @@ def _best_policy(
     _p0, _exit0 = subspace_decay(
         g, H, numpy.zeros(g.shape), -g / R, delta, constraints, PCG_Flag.POLICY_ONLY
     )
-    ret0 = PCG_Status(_p0, fval(_p0), 0, _exit0)
+    ret0 = PCG_Status(_p0, fval(_p0), 0, _exit0, delta)
 
     _p1, _direct, _iter, _exit1 = _implimentation(g, H, R, constraints, delta)
-    ret1 = PCG_Status(_p1, fval(_p1), _iter, _exit1)
+    ret1 = PCG_Status(_p1, fval(_p1), _iter, _exit1, delta)
 
     if _exit1 == PCG_Flag.RESIDUAL_CONVERGENCE:
         assert _direct is None
     else:
         assert _direct is not None
         _p2, _exit2 = subspace_decay(g, H, _p1, _direct, delta, constraints, _exit1)
-        ret2 = PCG_Status(_p2, fval(_p2), _iter, _exit2)
+        ret2 = PCG_Status(_p2, fval(_p2), _iter, _exit2, delta)
         ret1 = ret2 if not _iter else _best_status(ret1, ret2)
     return _best_status(ret1, ret0)
