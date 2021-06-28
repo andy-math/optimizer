@@ -36,7 +36,7 @@ class Test_neg_curve:
         )
         assert result.success
         assert numpy.all(numpy.round(result.x, 7) == 1)
-        assert 3 < result.iter < 15
+        assert 3 < result.iter < 20
 
 
 if __name__ == "__main__":

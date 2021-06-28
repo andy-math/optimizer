@@ -35,7 +35,7 @@ class Test_banana:
         )
         assert result.success
         assert numpy.all(numpy.round(result.x, 2) == 1)
-        assert 27 < result.iter < 60
+        assert 20 < result.iter < 60
 
 
 if __name__ == "__main__":
