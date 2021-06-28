@@ -89,6 +89,7 @@ def trust_region(
         H: ndarray
         up_to_date: bool = True
         times: int = 0
+        force_shake: bool = False
 
         def __init__(self, x: ndarray) -> None:
             self.H = make_hessian(gradient, x, constraints, opts)
@@ -132,7 +133,9 @@ def trust_region(
                 x, iter, delta, grad, success=False
             )  # pragma: no cover
 
-        if hessian.times > hessian.shaking and not hessian.up_to_date:
+        if (
+            hessian.times > hessian.shaking and not hessian.up_to_date
+        ) or hessian.force_shake:
             hessian = Hessian(x)
 
         # PCG
@@ -145,7 +148,7 @@ def trust_region(
             if hessian.up_to_date:
                 delta /= 4.0
             else:
-                hessian = Hessian(x)
+                hessian.force_shake = True
             options.output(
                 iter, fval, grad.infnorm, pcg_status, hessian.H, opts, hessian.times
             )
@@ -167,13 +170,14 @@ def trust_region(
             delta *= 2
         elif ratio <= 0.25 or reduce > 0:
             if not hessian.up_to_date:
-                hessian = Hessian(x)
+                hessian.force_shake = True
             else:
                 delta = pcg_status.size / 4.0
 
+        success: bool = False
         # 对符合下降要求的候选点进行更新
         if new_fval < fval:
-            x, fval, hessian.up_to_date = new_x, new_fval, False
+            x, fval, success = new_x, new_fval, True
             grad, _constr_shifted = get_info(
                 x,
                 GradientCheck(objective_ndarray, iter, grad.infnorm, init_grad_infnorm),
@@ -194,7 +198,7 @@ def trust_region(
             or pcg_status.flag == pcg.PCG_Flag.POLICY_ONLY
         ):
             if not hessian.up_to_date:
-                hessian = Hessian(x)
+                hessian.force_shake = True
                 continue
             if grad.infnorm < opts.tol_grad:  # 梯度足够小
                 return Trust_Region_Result(x, iter, delta, grad, success=True)
@@ -204,6 +208,9 @@ def trust_region(
         # 下降量过低收敛
         if opts.max_stall_iter is not None and stall_iter >= opts.max_stall_iter:
             if not hessian.up_to_date:
-                hessian = Hessian(x)
+                hessian.force_shake = True
                 continue
             return Trust_Region_Result(x, iter, delta, grad, success=True)
+
+        if success:
+            hessian.up_to_date = False
