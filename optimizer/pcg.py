@@ -178,9 +178,7 @@ def _best_policy(
     ret0 = subspace_decay(
         g, H, Status(None, 0, Flag.POLICY_ONLY, delta, g, H), -g / R, delta, constraints
     )
-
     ret1, direct = _implimentation(g, H, R, constraints, delta)
-
     if ret1.flag == Flag.RESIDUAL_CONVERGENCE:
         assert direct is None
         ret2 = None
