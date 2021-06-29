@@ -1,7 +1,9 @@
+import math
 from typing import Callable, NamedTuple, Optional, Tuple
 
 import numpy
 from numpy import ndarray
+from numpy.linalg import cholesky, eig, pinv  # type: ignore
 from optimizer._internals.common.findiff import findiff
 from optimizer._internals.trust_region.grad_check import gradient_check
 from optimizer._internals.trust_region.grad_cutoff import gradient_cutoff
@@ -17,15 +19,24 @@ class Hessian:
     # https://nhigham.com/2021/01/26/what-is-the-nearest-positive-semidefinite-matrix/
     value: ndarray
     pinv: ndarray
+    normF: ndarray
+    normF_chol: ndarray
     ill: bool
 
     def __init__(self, value: ndarray) -> None:
         value = (value.T + value) / 2.0
-        e: ndarray = numpy.linalg.eig(value)[0]  # type: ignore
+        e: ndarray
+        v: ndarray
+        e, v = eig(value)
         assert e.dtype == numpy.float64
         self.value = value
         self.ill = float(numpy.min(e)) < 0.0
-        self.pinv = numpy.linalg.pinv(value)  # type: ignore
+        self.pinv = pinv(value)
+
+        _eps = float(numpy.finfo(numpy.float64).eps)
+        e = numpy.diag(numpy.maximum(e, math.sqrt(_eps)))
+        self.normF = v @ e @ v.T
+        self.normF_chol = cholesky(self.normF).T
 
 
 class GradientCheck(NamedTuple):
