@@ -5,11 +5,11 @@ import math
 from typing import Optional, Tuple
 
 import numpy
-from numerical.linneq import check, constraint_check
-from numerical.typedefs import ndarray
+from numpy import ndarray
 from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
 
+from optimizer._internals.common.linneq import check, constraint_check
 from optimizer._internals.pcg import flags
 from optimizer._internals.pcg.policies import subspace_decay
 from optimizer._internals.pcg.precondition import gradient_precon, hessian_precon

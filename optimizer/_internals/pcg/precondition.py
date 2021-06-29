@@ -1,7 +1,7 @@
 import math
 
 import numpy
-from numerical.typedefs import ndarray
+from numpy import ndarray
 
 
 def hessian_precon(H: ndarray) -> ndarray:

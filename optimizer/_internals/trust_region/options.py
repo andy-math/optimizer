@@ -2,9 +2,9 @@ import math
 from typing import Callable, Dict, List, Literal, Optional, Union
 
 from mypy_extensions import NamedArg
-from numerical.isposdef import isposdef
-from numerical.typedefs import ndarray
+from numpy import ndarray
 from optimizer import pcg
+from optimizer._internals.common.isposdef import isposdef
 
 Trust_Region_Format_T = Optional[
     Callable[

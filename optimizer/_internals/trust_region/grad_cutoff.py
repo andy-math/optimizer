@@ -1,7 +1,7 @@
 from typing import Tuple
 
 import numpy
-from numerical.typedefs import ndarray
+from numpy import ndarray
 from optimizer._internals.trust_region.options import Trust_Region_Options
 
 

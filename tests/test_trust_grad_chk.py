@@ -2,10 +2,10 @@
 import math
 
 import numpy
-from numerical import difference
-from numerical.typedefs import ndarray
+from numpy import ndarray
 from optimizer import trust_region
 from optimizer._internals.trust_region.grad_check import Grad_Check_Failed
+from overloads import difference
 from overloads.capture_exceptions import Captured_Exception, capture_exceptions
 
 

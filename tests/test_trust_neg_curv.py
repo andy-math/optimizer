@@ -2,7 +2,7 @@
 import math
 
 import numpy
-from numerical.typedefs import ndarray
+from numpy import ndarray
 from optimizer import trust_region
 
 

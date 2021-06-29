@@ -1,9 +1,9 @@
 from typing import Callable, Optional, Tuple
 
-from numerical import difference
-from numerical.findiff import findiff
-from numerical.typedefs import ndarray
+from numpy import ndarray
+from optimizer._internals.common.findiff import findiff
 from optimizer._internals.trust_region.options import Trust_Region_Options
+from overloads import difference
 
 
 class Grad_Check_Failed(BaseException):

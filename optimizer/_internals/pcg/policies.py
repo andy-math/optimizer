@@ -2,8 +2,8 @@ import math
 from typing import Optional, Tuple
 
 import numpy
-from numerical.linneq import check, margin
-from numerical.typedefs import ndarray
+from numpy import ndarray
+from optimizer._internals.common.linneq import check, margin
 from optimizer._internals.pcg.flags import PCG_Flag
 
 
