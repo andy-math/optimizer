@@ -63,34 +63,6 @@ def _impl_output_check(
         assertNoInfNaN(direct)
 
 
-N = dyn_typing.SizeVar()
-nConstraints = dyn_typing.SizeVar()
-
-
-@dyn_typing.dyn_check_5(
-    input=(
-        dyn_typing.NDArray(numpy.float64, (N,)),
-        dyn_typing.NDArray(numpy.float64, (N, N)),
-        dyn_typing.NDArray(numpy.float64, (N,)),
-        dyn_typing.Tuple(
-            (
-                dyn_typing.NDArray(numpy.float64, (nConstraints, N)),
-                dyn_typing.NDArray(numpy.float64, (nConstraints,)),
-                dyn_typing.NDArray(numpy.float64, (N,)),
-                dyn_typing.NDArray(numpy.float64, (N,)),
-            )
-        ),
-        dyn_typing.Float(),
-    ),
-    output=dyn_typing.Tuple(
-        (
-            dyn_typing.NDArray(numpy.float64, (N,)),
-            dyn_typing.Optional(dyn_typing.NDArray(numpy.float64, (N,))),
-            dyn_typing.Int(),
-            dyn_typing.Class(PCG_Flag),
-        )
-    ),
-)
 @bind_checker.bind_checker_5(input=_impl_input_check, output=_impl_output_check)
 def _implimentation(
     g: ndarray,
