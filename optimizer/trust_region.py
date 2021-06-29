@@ -118,7 +118,7 @@ def trust_region(
     init_grad_infnorm: Final[float] = grad.infnorm
     old_fval, stall_iter = fval, 0
 
-    options.output(iter, fval, grad.infnorm, None, hessian.H, opts, hessian.times)
+    options.output(iter, fval, grad.infnorm, None, opts, hessian.times)
 
     ratio: Optional[float] = None
 
@@ -149,9 +149,7 @@ def trust_region(
                 delta /= 4.0
             else:
                 hessian.force_shake = True
-            options.output(
-                iter, fval, grad.infnorm, pcg_status, hessian.H, opts, hessian.times
-            )
+            options.output(iter, fval, grad.infnorm, pcg_status, opts, hessian.times)
             continue
 
         assert pcg_status.fval is not None
@@ -188,9 +186,7 @@ def trust_region(
             else:
                 old_fval, stall_iter = fval, 0
 
-        options.output(
-            iter, fval, grad.infnorm, pcg_status, hessian.H, opts, hessian.times
-        )
+        options.output(iter, fval, grad.infnorm, pcg_status, opts, hessian.times)
 
         # PCG正定收敛
         if (

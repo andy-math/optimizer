@@ -2,9 +2,7 @@ import math
 from typing import Callable, Dict, List, Literal, Optional, Union
 
 from mypy_extensions import NamedArg
-from numpy import ndarray
 from optimizer import pcg
-from optimizer._internals.common.isposdef import isposdef
 
 Trust_Region_Format_T = Optional[
     Callable[
@@ -86,12 +84,12 @@ class Trust_Region_Options:
     check_iter: Optional[int] = None  # 0表示只在最优化开始前进行一次梯度检查，-1表示完全关闭检查，默认的None表示始终进行检查
     shaking: Union[Literal["x.shape[0]"], int] = "x.shape[0]"
     format: Trust_Region_Format_T
-    posdef: Optional[Callable[[ndarray], str]]
+    posdef: Optional[Callable[[bool], str]]
 
     def __init__(self, *, max_iter: int) -> None:
         self.max_iter = max_iter
         self.format = default_format
-        self.posdef = lambda H: "-*- ill -*-" if not isposdef(H) else "           "
+        self.posdef = lambda ill: "-*- ill -*-" if ill else "           "
 
 
 def output(
@@ -99,7 +97,6 @@ def output(
     fval: float,
     grad_infnorm: float,
     pcg_status: Optional[pcg.Status],
-    hessian: ndarray,
     opts: Trust_Region_Options,
     times_after_hessian_shaking: int,
 ) -> None:
@@ -115,7 +112,9 @@ def output(
             grad=grad_infnorm,
             CGiter=0 if pcg_status is None else pcg_status.iter,
             CGexit="None" if pcg_status is None else pcg_status.flag.name,
-            posdef="" if opts.posdef is None else opts.posdef(hessian),
+            posdef="None"
+            if pcg_status is None
+            else ("" if opts.posdef is None else opts.posdef(pcg_status.ill)),
             shaking="Shaking" if times_after_hessian_shaking == 1 else "       ",
         )
         if output is not None:
