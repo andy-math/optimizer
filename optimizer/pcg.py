@@ -5,6 +5,7 @@ from typing import Optional, Tuple
 
 import numpy
 from numpy import ndarray
+from numpy.linalg import solve  # type: ignore
 from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
 
@@ -65,7 +66,7 @@ def _implimentation(
     (n,) = g.shape
     x: ndarray = numpy.zeros((n,))  # 目标点
     r: ndarray = -g  # 残差
-    z: ndarray = r / R if len(R.shape) == 1 else R @ r  # 归一化后的残差
+    z: ndarray = r / R if len(R.shape) == 1 else solve(R, r)  # 归一化后的残差
     d: ndarray = z  # 搜索方向
 
     inner1: float = float(r.T @ z)
@@ -100,7 +101,7 @@ def _implimentation(
 
         # 更新残差
         r = r - alpha * ww
-        z = r / R if len(R.shape) == 1 else R @ r
+        z = r / R if len(R.shape) == 1 else solve(R, r)
 
         # 更新搜索方向
         inner2: float = inner1
@@ -160,6 +161,7 @@ def pcg(
     return status.best_status(
         _best_policy(g, H.value, hessian_precon(H.value), constraints, delta),
         _best_policy(g, H.value, gradient_precon(g), constraints, delta),
+        _best_policy(g, H.value, H.normF_chol, constraints, delta),
         subspace_decay(
             g,
             H.value,
@@ -172,7 +174,7 @@ def pcg(
             g,
             H.value,
             Status(None, 0, Flag.POLICY_ONLY, delta, g, H.value),
-            numpy.linalg.solve(H.normF, -g),  # type: ignore
+            solve(H.normF, -g),
             delta,
             constraints,
         ),
@@ -191,7 +193,7 @@ def _best_policy(
         g,
         H,
         Status(None, 0, Flag.POLICY_ONLY, delta, g, H),
-        -(g / R) if len(R.shape) == 1 else -(R @ g),
+        (-g) / R if len(R.shape) == 1 else solve(R, -g),
         delta,
         constraints,
     )

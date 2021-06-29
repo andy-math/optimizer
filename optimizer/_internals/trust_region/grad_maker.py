@@ -36,7 +36,7 @@ class Hessian:
         _eps = float(numpy.finfo(numpy.float64).eps)
         e = numpy.diag(numpy.maximum(e, math.sqrt(_eps)))
         self.normF = v @ e @ v.T
-        self.normF_chol = cholesky(self.normF).T
+        self.normF_chol = cholesky(self.normF)
 
 
 class GradientCheck(NamedTuple):
