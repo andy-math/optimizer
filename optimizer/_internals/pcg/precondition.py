@@ -1,5 +1,3 @@
-import math
-
 import numpy
 from numpy import ndarray
 from optimizer._internals.pcg.norm_l2 import norm_l2
