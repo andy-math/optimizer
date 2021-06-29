@@ -25,15 +25,18 @@ class Hessian:
 
     def __init__(self, value: ndarray) -> None:
         value = (value.T + value) / 2.0
+
         e: ndarray
         v: ndarray
         e, v = eig(value)
         assert e.dtype == numpy.float64
+
         self.value = value
         self.ill = float(numpy.min(e)) < 0.0
         self.pinv = pinv(value)
 
         _eps = float(numpy.finfo(numpy.float64).eps)
+
         self.normF = v @ numpy.diag(numpy.maximum(e, math.sqrt(_eps))) @ v.T
         self.normF_chol = cholesky(self.normF)
 
