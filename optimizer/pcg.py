@@ -65,7 +65,7 @@ def _implimentation(
     (n,) = g.shape
     x: ndarray = numpy.zeros((n,))  # 目标点
     r: ndarray = -g  # 残差
-    z: ndarray = r / R if len(R.shape) == 1 else R @ r  # 归一化后的残差
+    z: ndarray = r / R  # 归一化后的残差
     d: ndarray = z  # 搜索方向
 
     inner1: float = float(r.T @ z)
@@ -100,7 +100,7 @@ def _implimentation(
 
         # 更新残差
         r = r - alpha * ww
-        z = r / R if len(R.shape) == 1 else R @ r
+        z = r / R
 
         # 更新搜索方向
         inner2: float = inner1
@@ -183,7 +183,7 @@ def _best_policy(
         g,
         H,
         Status(None, 0, Flag.POLICY_ONLY, delta, g, H),
-        -g / R if len(R.shape) == 1 else -R @ g,
+        -g / R,
         delta,
         constraints,
     )
