@@ -194,19 +194,18 @@ def trust_region(
         )
 
         # PCG正定收敛
-        if (
-            pcg_status.flag == pcg.Flag.RESIDUAL_CONVERGENCE
-            or pcg_status.flag == pcg.Flag.POLICY_ONLY
-        ):
-            if not hessian.up_to_date:
-                hessian.force_shake = True
-                continue
-            if grad.infnorm < opts.tol_grad:  # 梯度足够小
+        if pcg_status.flag in (pcg.Flag.RESIDUAL_CONVERGENCE, pcg.Flag.POLICY_ONLY):
+            # 梯度足够小的case无关乎hessian信息
+            if grad.infnorm < opts.tol_grad:
                 return Trust_Region_Result(x, iter, delta, grad, success=True)
-            if pcg_status.size < opts.tol_step:  # 步长足够小
+            # 步长足够小的case要考虑hessian更新
+            if pcg_status.size < opts.tol_step:
+                if not hessian.up_to_date:
+                    hessian.force_shake = True
+                    continue
                 return Trust_Region_Result(x, iter, delta, grad, success=True)
 
-        # 下降量过低收敛
+        # 下降量过低的case要考虑hessian更新
         if opts.max_stall_iter is not None and stall_iter >= opts.max_stall_iter:
             if not hessian.up_to_date:
                 hessian.force_shake = True

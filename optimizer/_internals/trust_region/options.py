@@ -101,6 +101,7 @@ def output(
     opts: Trust_Region_Options,
     times_after_hessian_shaking: int,
 ) -> None:
+    assert times_after_hessian_shaking >= 1
     if opts.format is not None:
         output = opts.format(
             iter=iter,
