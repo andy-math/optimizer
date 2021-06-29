@@ -32,6 +32,12 @@ class PCG_Status:
         flag: PCG_Flag,
         delta: float,
     ) -> None:
+        if x is not None:
+            assertNoInfNaN(x)
+            assert fval is not None
+            assertNoInfNaN_float(fval)
+        else:
+            assert fval is None
         self.x = x
         self.fval = fval
         self.iter = iter
