@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import math
 from typing import Optional
 
 from numpy import ndarray
 from optimizer._internals.pcg.flag import Flag
+from optimizer._internals.pcg.norm_l2 import norm_l2
 from optimizer._internals.pcg.qpval import qpval
 from overloads.shortcuts import assertNoInfNaN
 
@@ -37,10 +37,12 @@ class Status:
         self.fval = fval
         self.iter = iter
         self.flag = flag
-        self.size = None if x is None else math.sqrt(float(x @ x))
+        self.size = None if x is None else norm_l2(x)
         self.ill = ill
         if self.size is not None:
             assert self.size / delta < 1.0 + 1e-6
+            if flag != Flag.RESIDUAL_CONVERGENCE:
+                assert self.size != 0
 
 
 def _compare(s1: Status, s2: Status) -> Status:

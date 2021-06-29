@@ -2,7 +2,7 @@ import math
 from typing import Callable, Dict, List, Literal, Optional, Union
 
 from mypy_extensions import NamedArg
-from optimizer import pcg
+from optimizer._internals.pcg.status import Status
 
 Trust_Region_Format_T = Optional[
     Callable[
@@ -96,7 +96,7 @@ def output(
     iter: int,
     fval: float,
     grad_infnorm: float,
-    pcg_status: Optional[pcg.Status],
+    pcg_status: Optional[Status],
     opts: Trust_Region_Options,
     times_after_hessian_shaking: int,
 ) -> None:

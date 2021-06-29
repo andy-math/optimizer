@@ -14,6 +14,7 @@ from optimizer._internals.trust_region import options
 from optimizer._internals.trust_region.grad_maker import (
     Gradient,
     GradientCheck,
+    Hessian,
     make_gradient,
     make_hessian,
 )
@@ -82,11 +83,11 @@ def trust_region(
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     opts: Trust_Region_Options,
 ) -> Trust_Region_Result:
-    class Hessian:
+    class HProxy:
         shaking: Final[int] = (
             x.shape[0] if opts.shaking == "x.shape[0]" else opts.shaking
         )
-        H: ndarray
+        H: Hessian
         up_to_date: bool = True
         times: int = 0
         force_shake: bool = False
@@ -108,7 +109,7 @@ def trust_region(
     assert linneq.check(x.reshape(-1, 1), constraints)
 
     fval = objective(x)
-    hessian = Hessian(x)
+    hessian = HProxy(x)
     grad, _constr_shifted = get_info(
         x, GradientCheck(objective_ndarray, 0, numpy.inf, 0.0)
     )
@@ -136,7 +137,7 @@ def trust_region(
         if (
             hessian.times > hessian.shaking and not hessian.up_to_date
         ) or hessian.force_shake:
-            hessian = Hessian(x)
+            hessian = HProxy(x)
 
         # PCG
         pcg_status = pcg.pcg(grad.value, hessian.H, _constr_shifted, delta)

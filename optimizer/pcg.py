@@ -12,6 +12,7 @@ from optimizer._internals.common.linneq import check, constraint_check
 from optimizer._internals.pcg import flag, status
 from optimizer._internals.pcg.policies import subspace_decay
 from optimizer._internals.pcg.precondition import gradient_precon, hessian_precon
+from optimizer._internals.trust_region.grad_maker import Hessian
 
 Flag = flag.Flag
 Status = status.Status
@@ -66,7 +67,7 @@ def _implimentation(
     (n,) = g.shape
     x: ndarray = numpy.zeros((n,))  # 目标点
     r: ndarray = -g  # 残差
-    z: ndarray = r / R  # 归一化后的残差
+    z: ndarray = r / R if len(R.shape) == 1 else R @ r  # 归一化后的残差
     d: ndarray = z  # 搜索方向
 
     inner1: float = float(r.T @ z)
@@ -101,7 +102,7 @@ def _implimentation(
 
         # 更新残差
         r = r - alpha * ww
-        z = r / R
+        z = r / R if len(R.shape) == 1 else R @ r
 
         # 更新搜索方向
         inner2: float = inner1
@@ -113,11 +114,10 @@ def _implimentation(
 
 
 def _pcg_input_check(
-    input: Tuple[ndarray, ndarray, Tuple[ndarray, ndarray, ndarray, ndarray], float]
+    input: Tuple[ndarray, Hessian, Tuple[ndarray, ndarray, ndarray, ndarray], float]
 ) -> None:
-    g, H, constraints, delta = input
+    g, _, constraints, delta = input
     assertNoInfNaN(g)
-    assertNoInfNaN(H)
     constraint_check(constraints)
     assertNoInfNaN_float(delta)
 
@@ -138,7 +138,7 @@ nConstraints = dyn_typing.SizeVar()
 @dyn_typing.dyn_check_4(
     input=(
         dyn_typing.NDArray(numpy.float64, (N,)),
-        dyn_typing.NDArray(numpy.float64, (N, N)),
+        dyn_typing.Class(Hessian),
         dyn_typing.Tuple(
             (
                 dyn_typing.NDArray(numpy.float64, (nConstraints, N)),
@@ -154,35 +154,37 @@ nConstraints = dyn_typing.SizeVar()
 @bind_checker.bind_checker_4(input=_pcg_input_check, output=_pcg_output_check)
 def pcg(
     g: ndarray,
-    H: ndarray,
+    H: Hessian,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
 ) -> Status:
 
-    # https://nhigham.com/2021/01/26/what-is-the-nearest-positive-semidefinite-matrix/
-    assert numpy.all(H.T == H)
-    e: ndarray = numpy.linalg.eig(H)[0]  # type: ignore
-    assert e.dtype == numpy.float64
-    min_e = float(numpy.min(e))
-    ill = min_e < 0
-    H_norm2 = H if not ill else H + (-min_e) * numpy.eye(H.shape[0])
-
     return status.best_status(
-        _best_policy(g, H, hessian_precon(H), constraints, delta, ill),
-        _best_policy(g, H, gradient_precon(g), constraints, delta, ill),
+        _best_policy(g, H.value, hessian_precon(H.value), constraints, delta, H.ill),
+        _best_policy(g, H.value, gradient_precon(g), constraints, delta, H.ill),
+        _best_policy(g, H.value, H.norm2_ldl_pinv, constraints, delta, H.ill),
+        _best_policy(g, H.value, H.normF_ldl_pinv, constraints, delta, H.ill),
         subspace_decay(
             g,
-            H,
-            Status(None, 0, Flag.POLICY_ONLY, ill, delta, g, H),
-            numpy.linalg.lstsq(H, -g, rcond=None)[0],  # type: ignore
+            H.value,
+            Status(None, 0, Flag.POLICY_ONLY, H.ill, delta, g, H.value),
+            -H.pinv @ g,
             delta,
             constraints,
         ),
         subspace_decay(
             g,
-            H,
-            Status(None, 0, Flag.POLICY_ONLY, ill, delta, g, H),
-            numpy.linalg.lstsq(H_norm2, -g, rcond=None)[0],  # type: ignore
+            H.value,
+            Status(None, 0, Flag.POLICY_ONLY, H.ill, delta, g, H.value),
+            -H.norm2_pinv @ g,
+            delta,
+            constraints,
+        ),
+        subspace_decay(
+            g,
+            H.value,
+            Status(None, 0, Flag.POLICY_ONLY, H.ill, delta, g, H.value),
+            -H.normF_pinv @ g,
             delta,
             constraints,
         ),
@@ -202,7 +204,7 @@ def _best_policy(
         g,
         H,
         Status(None, 0, Flag.POLICY_ONLY, ill, delta, g, H),
-        -g / R,
+        -g / R if len(R.shape) == 1 else -R @ g,
         delta,
         constraints,
     )
