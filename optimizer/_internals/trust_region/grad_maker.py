@@ -21,6 +21,8 @@ class Hessian:
     pinv: ndarray
     normF: ndarray
     normF_chol: ndarray
+    norm2F: ndarray
+    norm2F_chol: ndarray
     ill: bool
 
     def __init__(self, value: ndarray) -> None:
@@ -39,6 +41,12 @@ class Hessian:
 
         self.normF = v @ numpy.diag(numpy.maximum(e, math.sqrt(_eps))) @ v.T
         self.normF_chol = cholesky(self.normF)
+
+        e, v = eig(
+            value + numpy.diag(numpy.full(e.shape, max(float(numpy.max(-e)), 0.0)))
+        )
+        self.norm2F = v @ numpy.diag(numpy.maximum(e, math.sqrt(_eps))) @ v.T
+        self.norm2F_chol = cholesky(self.norm2F)
 
 
 class GradientCheck(NamedTuple):

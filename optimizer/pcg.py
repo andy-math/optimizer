@@ -162,6 +162,7 @@ def pcg(
         _best_policy(g, H.value, hessian_precon(H.value), constraints, delta),
         _best_policy(g, H.value, gradient_precon(g), constraints, delta),
         _best_policy(g, H.value, H.normF_chol, constraints, delta),
+        _best_policy(g, H.value, H.norm2F_chol, constraints, delta),
         subspace_decay(
             g,
             H.value,
@@ -175,6 +176,14 @@ def pcg(
             H.value,
             Status(None, 0, Flag.POLICY_ONLY, delta, g, H.value),
             solve(H.normF, -g),
+            delta,
+            constraints,
+        ),
+        subspace_decay(
+            g,
+            H.value,
+            Status(None, 0, Flag.POLICY_ONLY, delta, g, H.value),
+            solve(H.norm2F, -g),
             delta,
             constraints,
         ),
