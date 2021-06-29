@@ -113,9 +113,7 @@ def output(
             grad=grad_infnorm,
             CGiter=0 if pcg_status is None else pcg_status.iter,
             CGexit="None" if pcg_status is None else pcg_status.flag.name,
-            posdef="None"
-            if pcg_status is None
-            else ("" if opts.posdef is None else opts.posdef(ill)),
+            posdef="" if opts.posdef is None else opts.posdef(ill),
             shaking="Shaking" if times_after_hessian_shaking == 1 else "       ",
         )
         if output is not None:
