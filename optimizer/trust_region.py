@@ -90,7 +90,6 @@ def trust_region(
         H: Hessian
         up_to_date: bool = True
         times: int = 0
-        force_shake: bool = False
 
         def __init__(self, x: ndarray) -> None:
             self.H = make_hessian(gradient, x, constraints, opts)
@@ -121,40 +120,45 @@ def trust_region(
 
     options.output(iter, fval, grad.infnorm, None, hessian.H.ill, opts, 1)
 
-    ratio: Optional[float] = None
+    hessian_force_shake: Optional[bool] = False
 
     while True:
         # 失败情形的截止条件放在最前是因为pcg失败时的continue会导致后面代码被跳过
         if delta < opts.tol_step:  # 信赖域太小
-            return Trust_Region_Result(
-                x, iter, delta, grad, success=ratio is not None and ratio > 0.25
-            )  # pragma: no cover
+            return Trust_Region_Result(x, iter, delta, grad, success=False)
         if iter > opts.max_iter:  # 迭代次数超过要求
-            return Trust_Region_Result(
-                x, iter, delta, grad, success=False
-            )  # pragma: no cover
+            return Trust_Region_Result(x, iter, delta, grad, success=False)
 
-        if (
-            hessian.times > hessian.shaking and not hessian.up_to_date
-        ) or hessian.force_shake:
+        # hessian过期则重新采样
+        assert hessian_force_shake is not None
+        if hessian.times > hessian.shaking and not hessian.up_to_date:
             hessian = HProxy(x)
+        elif hessian_force_shake:
+            hessian = HProxy(x)
+        hessian_force_shake = None
 
         # PCG
         pcg_status = pcg.pcg(grad.value, hessian.H, _constr_shifted, delta)
         iter += 1
         hessian.times += 1
 
+        # PCG失败recover
         if pcg_status.x is None:
-            ratio = None
-            if hessian.up_to_date:
-                delta /= 4.0
+            if not hessian.up_to_date:
+                hessian_force_shake = True
             else:
-                hessian.force_shake = True
+                hessian_force_shake = False
+                delta /= 4.0
             options.output(
-                iter, fval, grad.infnorm, pcg_status, hessian.H.ill, opts, hessian.times
+                iter,
+                fval,
+                grad.infnorm,
+                pcg_status,
+                hessian.H.ill,
+                opts,
+                hessian.times,
             )
             continue
-
         assert pcg_status.fval is not None
         assert pcg_status.size is not None
 
@@ -171,14 +175,14 @@ def trust_region(
             delta *= 2
         elif ratio <= 0.25 or reduce > 0:
             if not hessian.up_to_date:
-                hessian.force_shake = True
+                hessian_force_shake = True
             else:
                 delta = pcg_status.size / 4.0
 
-        success: bool = False
         # 对符合下降要求的候选点进行更新
+        hessian_out_of_date: bool = False
         if new_fval < fval:
-            x, fval, success = new_x, new_fval, True
+            x, fval, hessian_out_of_date = new_x, new_fval, True
             grad, _constr_shifted = get_info(
                 x,
                 GradientCheck(objective_ndarray, iter, grad.infnorm, init_grad_infnorm),
@@ -201,16 +205,17 @@ def trust_region(
             # 步长足够小的case要考虑hessian更新
             if pcg_status.size < opts.tol_step:
                 if not hessian.up_to_date:
-                    hessian.force_shake = True
+                    hessian_force_shake = True
                     continue
                 return Trust_Region_Result(x, iter, delta, grad, success=True)
 
         # 下降量过低的case要考虑hessian更新
         if opts.max_stall_iter is not None and stall_iter >= opts.max_stall_iter:
             if not hessian.up_to_date:
-                hessian.force_shake = True
+                hessian_force_shake = True
                 continue
             return Trust_Region_Result(x, iter, delta, grad, success=True)
 
-        if success:
+        if hessian_out_of_date:
             hessian.up_to_date = False
+        hessian_force_shake = False
