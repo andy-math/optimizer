@@ -119,7 +119,7 @@ def trust_region(
     init_grad_infnorm: Final[float] = grad.infnorm
     old_fval, stall_iter = fval, 0
 
-    options.output(iter, fval, grad.infnorm, None, hessian.H.ill, opts, hessian.times)
+    options.output(iter, fval, grad.infnorm, None, hessian.H.ill, opts, 1)
 
     ratio: Optional[float] = None
 
