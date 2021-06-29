@@ -15,12 +15,14 @@ class Status:
     iter: int
     flag: Flag
     size: Optional[float]
+    ill: bool
 
     def __init__(
         self,
         x: Optional[ndarray],
         iter: int,
         flag: Flag,
+        ill: bool,
         delta: float,
         g: ndarray,
         H: ndarray,
@@ -36,6 +38,7 @@ class Status:
         self.iter = iter
         self.flag = flag
         self.size = None if x is None else math.sqrt(float(x @ x))
+        self.ill = ill
         if self.size is not None:
             assert self.size / delta < 1.0 + 1e-6
 

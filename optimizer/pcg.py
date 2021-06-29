@@ -19,10 +19,15 @@ Status = status.Status
 
 def _impl_input_check(
     input: Tuple[
-        ndarray, ndarray, ndarray, Tuple[ndarray, ndarray, ndarray, ndarray], float
+        ndarray,
+        ndarray,
+        ndarray,
+        Tuple[ndarray, ndarray, ndarray, ndarray],
+        float,
+        bool,
     ]
 ) -> None:
-    g, H, R, constraints, delta = input
+    g, H, R, constraints, delta, _ = input
     assertNoInfNaN(g)
     assertNoInfNaN(H)
     assertNoInfNaN(R)
@@ -39,21 +44,22 @@ def _impl_output_check(output: Tuple[Status, Optional[ndarray]]) -> None:
         assertNoInfNaN(direct)
 
 
-@bind_checker.bind_checker_5(input=_impl_input_check, output=_impl_output_check)
+@bind_checker.bind_checker_6(input=_impl_input_check, output=_impl_output_check)
 def _implimentation(
     g: ndarray,
     H: ndarray,
     R: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
+    ill: bool,
 ) -> Tuple[Status, Optional[ndarray]]:
     def exit_(
         x: ndarray, d: Optional[ndarray], iter: int, flag: Flag
     ) -> Tuple[Status, Optional[ndarray]]:
         if iter != 0 or flag == Flag.RESIDUAL_CONVERGENCE:
-            return Status(x, iter, flag, delta, g, H), d
+            return Status(x, iter, flag, ill, delta, g, H), d
         else:
-            return Status(None, iter, flag, delta, g, H), d
+            return Status(None, iter, flag, ill, delta, g, H), d
 
     _eps = float(numpy.finfo(numpy.float64).eps)
 
@@ -153,18 +159,34 @@ def pcg(
     delta: float,
 ) -> Status:
 
-    ret0 = subspace_decay(
-        g,
-        H,
-        Status(None, 0, Flag.POLICY_ONLY, delta, g, H),
-        numpy.linalg.lstsq(H, -g, rcond=None)[0],  # type: ignore
-        delta,
-        constraints,
-    )
-    ret1 = _best_policy(g, H, hessian_precon(H), constraints, delta)
-    ret2 = _best_policy(g, H, gradient_precon(g), constraints, delta)
+    # https://nhigham.com/2021/01/26/what-is-the-nearest-positive-semidefinite-matrix/
+    assert numpy.all(H.T == H)
+    e: ndarray = numpy.linalg.eig(H)[0]  # type: ignore
+    assert e.dtype == numpy.float64
+    min_e = float(numpy.min(e))
+    ill = min_e < 0
+    H_norm2 = H if not ill else H + (-min_e) * numpy.eye(H.shape[0])
 
-    return status.best_status(ret1, ret2, ret0)
+    return status.best_status(
+        _best_policy(g, H, hessian_precon(H), constraints, delta, ill),
+        _best_policy(g, H, gradient_precon(g), constraints, delta, ill),
+        subspace_decay(
+            g,
+            H,
+            Status(None, 0, Flag.POLICY_ONLY, ill, delta, g, H),
+            numpy.linalg.lstsq(H, -g, rcond=None)[0],  # type: ignore
+            delta,
+            constraints,
+        ),
+        subspace_decay(
+            g,
+            H,
+            Status(None, 0, Flag.POLICY_ONLY, ill, delta, g, H),
+            numpy.linalg.lstsq(H_norm2, -g, rcond=None)[0],  # type: ignore
+            delta,
+            constraints,
+        ),
+    )
 
 
 def _best_policy(
@@ -173,16 +195,22 @@ def _best_policy(
     R: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
+    ill: bool,
 ) -> Status:
 
     ret0 = subspace_decay(
-        g, H, Status(None, 0, Flag.POLICY_ONLY, delta, g, H), -g / R, delta, constraints
+        g,
+        H,
+        Status(None, 0, Flag.POLICY_ONLY, ill, delta, g, H),
+        -g / R,
+        delta,
+        constraints,
     )
-    ret1, direct = _implimentation(g, H, R, constraints, delta)
+    ret1, direct = _implimentation(g, H, R, constraints, delta, ill)
     if ret1.flag == Flag.RESIDUAL_CONVERGENCE:
         assert direct is None
         ret2 = None
     else:
         assert direct is not None
         ret2 = subspace_decay(g, H, ret1, direct, delta, constraints)
-    return status.best_status(ret1, ret0, ret2)
+    return status.best_status(ret0, ret1, ret2)
