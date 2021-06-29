@@ -87,16 +87,12 @@ def subspace_decay(
     # 如果折半衰减后不满足约束，放弃，返回None
     final_x.shape = (final_x.shape[0], 1)
     if not check(final_x, constraints):
-        return Status(
-            None, _status.iter, Flag.VIOLATE_CONSTRAINTS, _status.ill, _delta, _g, H
-        )
+        return Status(None, _status.iter, Flag.VIOLATE_CONSTRAINTS, _delta, _g, H)
     final_x.shape = (final_x.shape[0],)
 
     # 如果满足了约束，曾经衰减过，那么替换flag为“越界”
     if bool(numpy.any(eliminated)):
-        return Status(
-            final_x, _status.iter, Flag.VIOLATE_CONSTRAINTS, _status.ill, _delta, _g, H
-        )
+        return Status(final_x, _status.iter, Flag.VIOLATE_CONSTRAINTS, _delta, _g, H)
 
     # 否则返回预期的前进
-    return Status(final_x, _status.iter, _status.flag, _status.ill, _delta, _g, H)
+    return Status(final_x, _status.iter, _status.flag, _delta, _g, H)

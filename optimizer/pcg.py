@@ -25,10 +25,9 @@ def _impl_input_check(
         ndarray,
         Tuple[ndarray, ndarray, ndarray, ndarray],
         float,
-        bool,
     ]
 ) -> None:
-    g, H, R, constraints, delta, _ = input
+    g, H, R, constraints, delta = input
     assertNoInfNaN(g)
     assertNoInfNaN(H)
     assertNoInfNaN(R)
@@ -45,22 +44,21 @@ def _impl_output_check(output: Tuple[Status, Optional[ndarray]]) -> None:
         assertNoInfNaN(direct)
 
 
-@bind_checker.bind_checker_6(input=_impl_input_check, output=_impl_output_check)
+@bind_checker.bind_checker_5(input=_impl_input_check, output=_impl_output_check)
 def _implimentation(
     g: ndarray,
     H: ndarray,
     R: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
-    ill: bool,
 ) -> Tuple[Status, Optional[ndarray]]:
     def exit_(
         x: ndarray, d: Optional[ndarray], iter: int, flag: Flag
     ) -> Tuple[Status, Optional[ndarray]]:
         if iter != 0 or flag == Flag.RESIDUAL_CONVERGENCE:
-            return Status(x, iter, flag, ill, delta, g, H), d
+            return Status(x, iter, flag, delta, g, H), d
         else:
-            return Status(None, iter, flag, ill, delta, g, H), d
+            return Status(None, iter, flag, delta, g, H), d
 
     _eps = float(numpy.finfo(numpy.float64).eps)
 
@@ -160,31 +158,13 @@ def pcg(
 ) -> Status:
 
     return status.best_status(
-        _best_policy(g, H.value, hessian_precon(H.value), constraints, delta, H.ill),
-        _best_policy(g, H.value, gradient_precon(g), constraints, delta, H.ill),
-        _best_policy(g, H.value, H.norm2_ldl_pinv, constraints, delta, H.ill),
-        _best_policy(g, H.value, H.normF_ldl_pinv, constraints, delta, H.ill),
+        _best_policy(g, H.value, hessian_precon(H.value), constraints, delta),
+        _best_policy(g, H.value, gradient_precon(g), constraints, delta),
         subspace_decay(
             g,
             H.value,
-            Status(None, 0, Flag.POLICY_ONLY, H.ill, delta, g, H.value),
+            Status(None, 0, Flag.POLICY_ONLY, delta, g, H.value),
             -H.pinv @ g,
-            delta,
-            constraints,
-        ),
-        subspace_decay(
-            g,
-            H.value,
-            Status(None, 0, Flag.POLICY_ONLY, H.ill, delta, g, H.value),
-            -H.norm2_pinv @ g,
-            delta,
-            constraints,
-        ),
-        subspace_decay(
-            g,
-            H.value,
-            Status(None, 0, Flag.POLICY_ONLY, H.ill, delta, g, H.value),
-            -H.normF_pinv @ g,
             delta,
             constraints,
         ),
@@ -197,18 +177,17 @@ def _best_policy(
     R: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
-    ill: bool,
 ) -> Status:
 
     ret0 = subspace_decay(
         g,
         H,
-        Status(None, 0, Flag.POLICY_ONLY, ill, delta, g, H),
+        Status(None, 0, Flag.POLICY_ONLY, delta, g, H),
         -g / R if len(R.shape) == 1 else -R @ g,
         delta,
         constraints,
     )
-    ret1, direct = _implimentation(g, H, R, constraints, delta, ill)
+    ret1, direct = _implimentation(g, H, R, constraints, delta)
     if ret1.flag == Flag.RESIDUAL_CONVERGENCE:
         assert direct is None
         ret2 = None
