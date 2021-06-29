@@ -194,8 +194,8 @@ def trust_region(
 
         # PCG正定收敛
         if (
-            pcg_status.flag == pcg.PCG_Flag.RESIDUAL_CONVERGENCE
-            or pcg_status.flag == pcg.PCG_Flag.POLICY_ONLY
+            pcg_status.flag == pcg.Flag.RESIDUAL_CONVERGENCE
+            or pcg_status.flag == pcg.Flag.POLICY_ONLY
         ):
             if not hessian.up_to_date:
                 hessian.force_shake = True

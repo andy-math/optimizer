@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import math
 from typing import Optional, Tuple
 
 import numpy
@@ -10,41 +9,12 @@ from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
 
 from optimizer._internals.common.linneq import check, constraint_check
-from optimizer._internals.pcg import flags
+from optimizer._internals.pcg import flag, status
 from optimizer._internals.pcg.policies import subspace_decay
 from optimizer._internals.pcg.precondition import gradient_precon, hessian_precon
 
-PCG_Flag = flags.PCG_Flag
-
-
-class PCG_Status:
-    x: Optional[ndarray]
-    fval: Optional[float]
-    iter: int
-    flag: PCG_Flag
-    size: Optional[float]
-
-    def __init__(
-        self,
-        x: Optional[ndarray],
-        fval: Optional[float],
-        iter: int,
-        flag: PCG_Flag,
-        delta: float,
-    ) -> None:
-        if x is not None:
-            assertNoInfNaN(x)
-            assert fval is not None
-            assertNoInfNaN_float(fval)
-        else:
-            assert fval is None
-        self.x = x
-        self.fval = fval
-        self.iter = iter
-        self.flag = flag
-        self.size = None if x is None else math.sqrt(float(x @ x))
-        if self.size is not None:
-            assert self.size / delta < 1.0 + 1e-6
+Flag = flag.Flag
+Status = status.Status
 
 
 def _impl_input_check(
@@ -60,12 +30,12 @@ def _impl_input_check(
     assertNoInfNaN_float(delta)
 
 
-def _impl_output_check(
-    output: Tuple[ndarray, Optional[ndarray], int, PCG_Flag]
-) -> None:
-    p, direct, _, _ = output
-    assertNoInfNaN(p)
-    if direct is not None:
+def _impl_output_check(output: Tuple[Status, Optional[ndarray]]) -> None:
+    status, direct = output
+    if status.flag == Flag.RESIDUAL_CONVERGENCE:
+        assert direct is None
+    else:
+        assert direct is not None
         assertNoInfNaN(direct)
 
 
@@ -76,44 +46,52 @@ def _implimentation(
     R: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
-) -> Tuple[ndarray, Optional[ndarray], int, PCG_Flag]:
+) -> Tuple[Status, Optional[ndarray]]:
+    def exit_(
+        x: ndarray, d: Optional[ndarray], iter: int, flag: Flag
+    ) -> Tuple[Status, Optional[ndarray]]:
+        if iter != 0 or flag == Flag.RESIDUAL_CONVERGENCE:
+            return Status(x, iter, flag, delta, g, H), d
+        else:
+            return Status(None, iter, flag, delta, g, H), d
+
     _eps = float(numpy.finfo(numpy.float64).eps)
 
     (n,) = g.shape
-    p: ndarray = numpy.zeros((n,))  # 目标点
+    x: ndarray = numpy.zeros((n,))  # 目标点
     r: ndarray = -g  # 残差
     z: ndarray = r / R  # 归一化后的残差
-    direct: ndarray = z  # 搜索方向
+    d: ndarray = z  # 搜索方向
 
     inner1: float = float(r.T @ z)
 
     for iter in range(n):
         # 残差收敛性检查
         if numpy.max(numpy.abs(z)) < numpy.sqrt(_eps):
-            return (p, None, iter, PCG_Flag.RESIDUAL_CONVERGENCE)
+            return exit_(x, None, iter, Flag.RESIDUAL_CONVERGENCE)
 
         # 负曲率检查
-        ww: ndarray = H @ direct
-        denom: float = float(direct.T @ ww)
+        ww: ndarray = H @ d
+        denom: float = float(d.T @ ww)
         if denom <= 0:
-            return (p, direct, iter, PCG_Flag.NEGATIVE_CURVATURE)
+            return exit_(x, d, iter, Flag.NEGATIVE_CURVATURE)
 
         # 试探坐标点
         alpha: float = inner1 / denom
-        pnew: ndarray = p + alpha * direct
+        x_new: ndarray = x + alpha * d
 
         # 目标点超出信赖域
-        if numpy.linalg.norm(pnew) > delta:  # type: ignore
-            return (p, direct, iter, PCG_Flag.OUT_OF_TRUST_REGION)
+        if numpy.linalg.norm(x_new) > delta:  # type: ignore
+            return exit_(x, d, iter, Flag.OUT_OF_TRUST_REGION)
 
         # 违反约束
-        pnew.shape = (n, 1)
-        if not check(pnew, constraints):
-            return (p, direct, iter, PCG_Flag.VIOLATE_CONSTRAINTS)  # pragma: no cover
-        pnew.shape = (n,)
+        x_new.shape = (n, 1)
+        if not check(x_new, constraints):
+            return exit_(x, d, iter, Flag.VIOLATE_CONSTRAINTS)
+        x_new.shape = (n,)
 
         # 更新坐标点
-        p = pnew
+        x = x_new
 
         # 更新残差
         r = r - alpha * ww
@@ -123,9 +101,9 @@ def _implimentation(
         inner2: float = inner1
         inner1 = float(r.T @ z)
         beta: float = inner1 / inner2
-        direct = z + beta * direct
+        d = z + beta * d
 
-    return (p, None, iter, PCG_Flag.RESIDUAL_CONVERGENCE)
+    return exit_(x, None, iter, Flag.RESIDUAL_CONVERGENCE)
 
 
 def _pcg_input_check(
@@ -138,7 +116,7 @@ def _pcg_input_check(
     assertNoInfNaN_float(delta)
 
 
-def _pcg_output_check(output: PCG_Status) -> None:
+def _pcg_output_check(output: Status) -> None:
     if output.x is not None:
         assert output.fval is not None
         assertNoInfNaN(output.x)
@@ -165,7 +143,7 @@ nConstraints = dyn_typing.SizeVar()
         ),
         dyn_typing.Float(),
     ),
-    output=dyn_typing.Class(PCG_Status),
+    output=dyn_typing.Class(Status),
 )
 @bind_checker.bind_checker_4(input=_pcg_input_check, output=_pcg_output_check)
 def pcg(
@@ -173,45 +151,20 @@ def pcg(
     H: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
-) -> PCG_Status:
-    def fval(p: Optional[ndarray]) -> Optional[float]:
-        return None if p is None else float(g.T @ p + (0.5 * p).T @ H @ p)
+) -> Status:
 
-    _p0, _exit0 = subspace_decay(
+    ret0 = subspace_decay(
         g,
         H,
-        numpy.zeros(g.shape),
+        Status(None, 0, Flag.POLICY_ONLY, delta, g, H),
         numpy.linalg.lstsq(H, -g, rcond=None)[0],  # type: ignore
         delta,
         constraints,
-        PCG_Flag.POLICY_ONLY,
     )
-    ret0 = PCG_Status(_p0, fval(_p0), 0, _exit0, delta)
     ret1 = _best_policy(g, H, hessian_precon(H), constraints, delta)
     ret2 = _best_policy(g, H, gradient_precon(g), constraints, delta)
 
-    return _best_status(_best_status(ret1, ret2), ret0)
-
-
-def _best_status(ret1: PCG_Status, ret2: PCG_Status) -> PCG_Status:
-    def norm2(x: ndarray) -> float:
-        return math.sqrt(float(x @ x))
-
-    if ret1.x is None and ret2.x is None:
-        return ret1
-    elif ret1.x is None:
-        return ret2
-    elif ret2.x is None:
-        return ret1
-    else:
-        assert ret1.fval is not None
-        assert ret2.fval is not None
-        if ret1.fval < ret2.fval or (
-            ret1.fval == ret2.fval and norm2(ret1.x) <= norm2(ret2.x)
-        ):
-            return ret1
-        else:
-            return ret2
+    return status.best_status(ret1, ret2, ret0)
 
 
 def _best_policy(
@@ -220,23 +173,18 @@ def _best_policy(
     R: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
-) -> PCG_Status:
-    def fval(p: Optional[ndarray]) -> Optional[float]:
-        return None if p is None else float(g.T @ p + (0.5 * p).T @ H @ p)
+) -> Status:
 
-    _p0, _exit0 = subspace_decay(
-        g, H, numpy.zeros(g.shape), -g / R, delta, constraints, PCG_Flag.POLICY_ONLY
+    ret0 = subspace_decay(
+        g, H, Status(None, 0, Flag.POLICY_ONLY, delta, g, H), -g / R, delta, constraints
     )
-    ret0 = PCG_Status(_p0, fval(_p0), 0, _exit0, delta)
 
-    _p1, _direct, _iter, _exit1 = _implimentation(g, H, R, constraints, delta)
-    ret1 = PCG_Status(_p1, fval(_p1), _iter, _exit1, delta)
+    ret1, direct = _implimentation(g, H, R, constraints, delta)
 
-    if _exit1 == PCG_Flag.RESIDUAL_CONVERGENCE:
-        assert _direct is None
+    if ret1.flag == Flag.RESIDUAL_CONVERGENCE:
+        assert direct is None
+        ret2 = None
     else:
-        assert _direct is not None
-        _p2, _exit2 = subspace_decay(g, H, _p1, _direct, delta, constraints, _exit1)
-        ret2 = PCG_Status(_p2, fval(_p2), _iter, _exit2, delta)
-        ret1 = ret2 if not _iter else _best_status(ret1, ret2)
-    return _best_status(ret1, ret0)
+        assert direct is not None
+        ret2 = subspace_decay(g, H, ret1, direct, delta, constraints)
+    return status.best_status(ret1, ret0, ret2)

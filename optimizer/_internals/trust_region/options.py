@@ -98,7 +98,7 @@ def output(
     iter: int,
     fval: float,
     grad_infnorm: float,
-    pcg_status: Optional[pcg.PCG_Status],
+    pcg_status: Optional[pcg.Status],
     hessian: ndarray,
     opts: Trust_Region_Options,
     times_after_hessian_shaking: int,
