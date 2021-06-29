@@ -8,11 +8,11 @@ from numpy import ndarray
 from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
 
+from optimizer._internals.common.hessian import Hessian
 from optimizer._internals.common.linneq import check, constraint_check
 from optimizer._internals.pcg import flag, status
 from optimizer._internals.pcg.policies import subspace_decay
 from optimizer._internals.pcg.precondition import gradient_precon, hessian_precon
-from optimizer._internals.trust_region.grad_maker import Hessian
 
 solve: Callable[[ndarray, ndarray], ndarray] = numpy.linalg.solve  # type: ignore
 

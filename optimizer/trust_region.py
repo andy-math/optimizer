@@ -10,11 +10,11 @@ from overloads.shortcuts import assertNoInfNaN
 
 from optimizer import pcg
 from optimizer._internals.common import linneq
+from optimizer._internals.common.hessian import Hessian
 from optimizer._internals.trust_region import options
 from optimizer._internals.trust_region.grad_maker import (
     Gradient,
     GradientCheck,
-    Hessian,
     make_gradient,
     make_hessian,
 )
