@@ -174,7 +174,7 @@ def pcg(
             g,
             H.value,
             Status(None, 0, Flag.POLICY_ONLY, delta, g, H.value),
-            solve(H, g) if H.pinv is None else H.pinv @ (-g),
+            solve(H, -g) if H.pinv is None else H.pinv @ (-g),
             delta,
             constraints,
         ),
