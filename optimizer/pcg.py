@@ -161,17 +161,26 @@ def pcg(
     return status.best_status(
         _best_policy(g, H.value, hessian_precon(H.value), constraints, delta),
         _best_policy(g, H.value, gradient_precon(g), constraints, delta),
-        _best_policy(g, H.value, H.normF_chol, constraints, delta),
-        _best_policy(g, H.value, H.norm2F_chol, constraints, delta),
+        None
+        if H.chol is None
+        else _best_policy(g, H.value, H.chol, constraints, delta),
+        None
+        if H.normF_chol is None
+        else _best_policy(g, H.value, H.normF_chol, constraints, delta),
+        None
+        if H.norm2F_chol is None
+        else _best_policy(g, H.value, H.norm2F_chol, constraints, delta),
         subspace_decay(
             g,
             H.value,
             Status(None, 0, Flag.POLICY_ONLY, delta, g, H.value),
-            -H.pinv @ g,
+            solve(H, g) if H.pinv is None else H.pinv @ (-g),
             delta,
             constraints,
         ),
-        subspace_decay(
+        None
+        if H.normF is None
+        else subspace_decay(
             g,
             H.value,
             Status(None, 0, Flag.POLICY_ONLY, delta, g, H.value),
@@ -179,7 +188,9 @@ def pcg(
             delta,
             constraints,
         ),
-        subspace_decay(
+        None
+        if H.norm2F is None
+        else subspace_decay(
             g,
             H.value,
             Status(None, 0, Flag.POLICY_ONLY, delta, g, H.value),
@@ -213,4 +224,4 @@ def _best_policy(
     else:
         assert direct is not None
         ret2 = subspace_decay(g, H, ret1, direct, delta, constraints)
-    return status.best_status(ret0, ret1, ret2)
+    return status.best_status(ret1, ret2, ret0)
