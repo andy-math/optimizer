@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from typing import Callable, Optional, Tuple
+from typing import Optional, Tuple
 
 import numpy
 from numpy import ndarray
@@ -13,8 +13,6 @@ from optimizer._internals.common.linneq import check, constraint_check
 from optimizer._internals.pcg import flag, status
 from optimizer._internals.pcg.policies import subspace_decay
 from optimizer._internals.pcg.precondition import gradient_precon, hessian_precon
-
-solve: Callable[[ndarray, ndarray], ndarray] = numpy.linalg.solve  # type: ignore
 
 Flag = flag.Flag
 Status = status.Status
@@ -67,7 +65,7 @@ def _implimentation(
     (n,) = g.shape
     x: ndarray = numpy.zeros((n,))  # 目标点
     r: ndarray = -g  # 残差
-    z: ndarray = r / R if len(R.shape) == 1 else solve(R, r)  # 归一化后的残差
+    z: ndarray = r / R  # 归一化后的残差
     d: ndarray = z  # 搜索方向
 
     inner1: float = float(r.T @ z)
@@ -102,7 +100,7 @@ def _implimentation(
 
         # 更新残差
         r = r - alpha * ww
-        z = r / R if len(R.shape) == 1 else solve(R, r)
+        z = r / R
 
         # 更新搜索方向
         inner2: float = inner1
@@ -162,40 +160,13 @@ def pcg(
     return status.best_status(
         _best_policy(g, H.value, hessian_precon(H.value), constraints, delta),
         _best_policy(g, H.value, gradient_precon(g), constraints, delta),
-        None
-        if H.chol is None
-        else _best_policy(g, H.value, H.chol, constraints, delta),
-        None
-        if H.normF_chol is None
-        else _best_policy(g, H.value, H.normF_chol, constraints, delta),
-        None
-        if H.norm2F_chol is None
-        else _best_policy(g, H.value, H.norm2F_chol, constraints, delta),
         subspace_decay(
             g,
             H.value,
             Status(None, 0, Flag.POLICY_ONLY, delta, g, H.value),
-            solve(H.value, -g) if H.pinv is None else H.pinv @ (-g),
-            delta,
-            constraints,
-        ),
-        None
-        if H.normF is None
-        else subspace_decay(
-            g,
-            H.value,
-            Status(None, 0, Flag.POLICY_ONLY, delta, g, H.value),
-            solve(H.normF, -g),
-            delta,
-            constraints,
-        ),
-        None
-        if H.norm2F is None
-        else subspace_decay(
-            g,
-            H.value,
-            Status(None, 0, Flag.POLICY_ONLY, delta, g, H.value),
-            solve(H.norm2F, -g),
+            numpy.linalg.solve(H.value, -g)  # type: ignore
+            if H.pinv is None
+            else H.pinv @ (-g),
             delta,
             constraints,
         ),
@@ -214,7 +185,7 @@ def _best_policy(
         g,
         H,
         Status(None, 0, Flag.POLICY_ONLY, delta, g, H),
-        (-g) / R if len(R.shape) == 1 else solve(R, -g),
+        (-g) / R,
         delta,
         constraints,
     )
