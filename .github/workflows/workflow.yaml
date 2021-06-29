@@ -32,10 +32,6 @@ jobs:
         mv overloads overloads_git
         mv overloads_git/overloads overloads
         rm -rf overloads_git
-        git clone https://github.com/Andy-math/numerical.git
-        mv numerical numerical_git
-        mv numerical_git/numerical numerical
-        rm -rf numerical_git
         export PYTHONPATH=.
         coverage run -m pytest --junitxml=JUnit.xml
         coverage combine
