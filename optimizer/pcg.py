@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple
 
 import numpy
 from numpy import ndarray
-from numpy.linalg import solve  # type: ignore
 from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
 
@@ -14,6 +13,8 @@ from optimizer._internals.pcg import flag, status
 from optimizer._internals.pcg.policies import subspace_decay
 from optimizer._internals.pcg.precondition import gradient_precon, hessian_precon
 from optimizer._internals.trust_region.grad_maker import Hessian
+
+solve: Callable[[ndarray, ndarray], ndarray] = numpy.linalg.solve  # type: ignore
 
 Flag = flag.Flag
 Status = status.Status
@@ -174,7 +175,7 @@ def pcg(
             g,
             H.value,
             Status(None, 0, Flag.POLICY_ONLY, delta, g, H.value),
-            solve(H, -g) if H.pinv is None else H.pinv @ (-g),
+            solve(H.value, -g) if H.pinv is None else H.pinv @ (-g),
             delta,
             constraints,
         ),
