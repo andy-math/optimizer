@@ -1,3 +1,5 @@
+import math
+
 import numpy
 from numpy import ndarray
 from optimizer._internals.pcg.norm_l2 import norm_l2
@@ -9,9 +11,9 @@ def hessian_precon(H: ndarray) -> ndarray:
     # 取 max{ l2norm(col(H)), sqrt(eps) }
     # 预条件子 M = C.T @ C == diag(R)
     # 其中 H === H.T  =>  norm(col(H)) === norm(row(H))
-    _eps = float(numpy.finfo(numpy.float64).eps)
+    _err = math.sqrt(float(numpy.finfo(numpy.float64).eps))
     dnrms: ndarray = numpy.sqrt(numpy.sum(H * H, axis=1))
-    R: ndarray = numpy.maximum(dnrms, numpy.sqrt(numpy.array([_eps])))
+    R: ndarray = numpy.maximum(dnrms, _err)
     return R
 
 
