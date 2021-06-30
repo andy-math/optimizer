@@ -13,6 +13,8 @@ def hessian_precon(H: ndarray) -> ndarray:
     # 其中 H === H.T  =>  norm(col(H)) === norm(row(H))
     _err = math.sqrt(float(numpy.finfo(numpy.float64).eps))
     dnrms: ndarray = numpy.sqrt(numpy.sum(H * H, axis=1))
+    if numpy.any(numpy.isinf(dnrms)):  # 若l2计算过程中不可避免产生inf，那么使用inf范数代替之
+        dnrms = numpy.max(numpy.abs(H), axis=1)
     R: ndarray = numpy.maximum(dnrms, _err)
     return R
 
