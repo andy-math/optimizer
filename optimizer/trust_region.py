@@ -207,7 +207,7 @@ def trust_region(
             # 步长足够小的case要考虑hessian更新
             if pcg_status.size < opts.tol_step:
                 if not hessian.up_to_date:
-                    assert hessian_force_shake is None
+                    assert hessian_force_shake or hessian_force_shake is None
                     hessian_force_shake = True
                     continue
                 return Trust_Region_Result(x, iter, delta, grad, success=True)
@@ -215,7 +215,7 @@ def trust_region(
         # 下降量过低的case要考虑hessian更新
         if opts.max_stall_iter is not None and stall_iter >= opts.max_stall_iter:
             if not hessian.up_to_date:
-                assert hessian_force_shake is None
+                assert hessian_force_shake or hessian_force_shake is None
                 hessian_force_shake = True
                 continue
             return Trust_Region_Result(x, iter, delta, grad, success=True)
