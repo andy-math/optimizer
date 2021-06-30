@@ -16,6 +16,8 @@ class Hessian:
         value = (value.T + value) / 2.0
 
         e: ndarray = numpy.linalg.eig(value)[0]  # type: ignore
+        if e.dtype != numpy.float64:
+            e = numpy.real(e)
         assert e.dtype == numpy.float64
 
         min_e = float(numpy.min(e))
