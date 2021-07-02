@@ -11,6 +11,7 @@ from overloads.shortcuts import assertNoInfNaN
 
 from optimizer import pcg
 from optimizer._internals.common import linneq
+from optimizer._internals.common.hessian import Hessian
 from optimizer._internals.trust_region import options
 from optimizer._internals.trust_region.frozenstate import FrozenState
 from optimizer._internals.trust_region.grad_maker import Gradient
@@ -26,7 +27,14 @@ class Trust_Region_Result(NamedTuple):
     iter: int
     delta: float
     gradient: Gradient
+    hessian: Hessian
     success: bool
+
+
+def _make_result(
+    sol: Solution, iter: int, delta: float, *, success: bool
+) -> Trust_Region_Result:
+    return Trust_Region_Result(sol.x, iter, delta, sol.grad, sol.get_hessian(), success)
 
 
 def _input_check(
@@ -101,9 +109,9 @@ def trust_region(
     while True:
         # 失败情形的截止条件放在最前是因为pcg失败时的continue会导致后面代码被跳过
         if delta < state.opts.tol_step:  # 信赖域太小
-            return Trust_Region_Result(sol.x, iter, delta, sol.grad, success=False)
+            return _make_result(sol, iter, delta, success=False)
         if iter > state.opts.max_iter:  # 迭代次数超过要求
-            return Trust_Region_Result(sol.x, iter, delta, sol.grad, success=False)
+            return _make_result(sol, iter, delta, success=False)
 
         # hessian过期则重新采样
         assert hessian_force_shake is not None
@@ -185,14 +193,14 @@ def trust_region(
         if pcg_status.flag in (pcg.Flag.RESIDUAL_CONVERGENCE, pcg.Flag.POLICY_ONLY):
             # 梯度足够小的case无关乎hessian信息
             if sol.grad.infnorm < state.opts.tol_grad:
-                return Trust_Region_Result(sol.x, iter, delta, sol.grad, success=True)
+                return _make_result(sol, iter, delta, success=True)
             # 步长足够小的case要考虑hessian更新
             if pcg_status.size < state.opts.tol_step:
                 if not old_sol.hess_up_to_date:
                     assert hessian_force_shake or hessian_force_shake is None
                     hessian_force_shake = True
                     continue
-                return Trust_Region_Result(sol.x, iter, delta, sol.grad, success=True)
+                return _make_result(sol, iter, delta, success=True)
 
         # 下降量过低的case要考虑hessian更新
         if (
@@ -203,7 +211,7 @@ def trust_region(
                 assert hessian_force_shake or hessian_force_shake is None
                 hessian_force_shake = True
                 continue
-            return Trust_Region_Result(sol.x, iter, delta, sol.grad, success=True)
+            return _make_result(sol, iter, delta, success=True)
 
         if hessian_force_shake is not None:
             assert hessian_force_shake
