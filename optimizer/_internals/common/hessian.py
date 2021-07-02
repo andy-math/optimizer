@@ -1,16 +1,18 @@
 import math
-from typing import Optional
+from typing import Final, Optional
 
 import numpy
 from numpy import ndarray
 
 
 class Hessian:
-    value: ndarray
-    ill: bool
-    pinv: Optional[ndarray] = None
+    value: Final[ndarray]
+    ill: Final[bool]
+    pinv: Final[Optional[ndarray]] = None
+    times: int = 0
+    max_times: Final[int]
 
-    def __init__(self, value: ndarray) -> None:
+    def __init__(self, value: ndarray, *, max_times: int) -> None:
         _err = math.sqrt(float(numpy.finfo(numpy.float64).eps))
 
         value = (value.T + value) / 2.0
@@ -27,3 +29,5 @@ class Hessian:
 
         if self.ill:
             self.pinv = numpy.linalg.pinv(value)  # type: ignore
+
+        self.max_times = max_times

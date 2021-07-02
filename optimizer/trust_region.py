@@ -95,9 +95,7 @@ def trust_region(
 
     hessian = sol0.get_hessian()
 
-    options.output(
-        iter, sol0.fval, sol0.grad.infnorm, None, hessian.value.ill, state.opts, 1
-    )
+    options.output(iter, sol0.fval, sol0.grad.infnorm, None, hessian.ill, state.opts, 1)
 
     sol = sol0
     while True:
@@ -116,7 +114,7 @@ def trust_region(
         hessian_force_shake = None
 
         # PCG
-        pcg_status = pcg.pcg(sol.grad.value, hessian.value, sol.shifted_constr, delta)
+        pcg_status = pcg.pcg(sol.grad.value, hessian, sol.shifted_constr, delta)
         iter += 1
         hessian.times += 1
 
@@ -133,7 +131,7 @@ def trust_region(
                 sol.fval,
                 sol.grad.infnorm,
                 pcg_status,
-                hessian.value.ill,
+                hessian.ill,
                 state.opts,
                 hessian.times,
             )
@@ -178,7 +176,7 @@ def trust_region(
             sol.fval,
             sol.grad.infnorm,
             pcg_status,
-            hessian.value.ill,
+            hessian.ill,
             state.opts,
             hessian.times,
         )

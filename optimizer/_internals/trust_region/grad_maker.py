@@ -41,10 +41,12 @@ def make_hessian(
     x: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     opts: Trust_Region_Options,
+    *,
+    max_times: int,
 ) -> Hessian:
     H = findiff(
         lambda x: make_gradient(g, x, constraints, opts, check=None).value,
         x,
         constraints,
     )
-    return Hessian(H)
+    return Hessian(H, max_times=max_times)

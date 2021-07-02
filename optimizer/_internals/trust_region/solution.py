@@ -6,7 +6,6 @@ from typing import Final, Tuple
 
 from numpy import ndarray
 from optimizer._internals.common.hessian import Hessian
-from optimizer._internals.trust_region import options
 from optimizer._internals.trust_region.frozenstate import FrozenState
 from optimizer._internals.trust_region.grad_maker import (
     Gradient,
@@ -14,20 +13,6 @@ from optimizer._internals.trust_region.grad_maker import (
     make_gradient,
     make_hessian,
 )
-
-Trust_Region_Format_T = options.Trust_Region_Format_T
-default_format = options.default_format
-Trust_Region_Options = options.Trust_Region_Options
-
-
-class HessianProxy:
-    value: Hessian
-    times: int = 0
-    max_times: int
-
-    def __init__(self, value: Hessian, max_times: int) -> None:
-        self.value = value
-        self.max_times = max_times
 
 
 class Solution:
@@ -59,11 +44,14 @@ class Solution:
         A, b, lb, ub = state.constraints
         self.shifted_constr = (A, b - A @ x, lb - x, ub - x)
 
-    def get_hessian(self) -> HessianProxy:
+    def get_hessian(self) -> Hessian:
         self.hess_up_to_date = True
-        return HessianProxy(
-            make_hessian(self.state.g, self.x, self.state.constraints, self.state.opts),
-            self.x.shape[0]
+        return make_hessian(
+            self.state.g,
+            self.x,
+            self.state.constraints,
+            self.state.opts,
+            max_times=self.x.shape[0]
             if self.state.opts.shaking == "x.shape[0]"
             else self.state.opts.shaking,
         )
