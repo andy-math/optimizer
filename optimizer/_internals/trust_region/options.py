@@ -61,6 +61,8 @@ def default_format(
         output.append(" " * (_width - len(v)) + v)
         _default_format_width[k] = _width
     _output = "  ".join(output)
+    if iter == 0:
+        _default_format_times = 0
     if _default_format_times % 20 == 0:
         label: List[str] = []
         for k in data:
