@@ -5,13 +5,13 @@ from __future__ import annotations
 from typing import Final, Tuple
 
 from numpy import ndarray
+from optimizer._internals.common.findiff import findiff
 from optimizer._internals.common.hessian import Hessian
 from optimizer._internals.trust_region.frozenstate import FrozenState
 from optimizer._internals.trust_region.grad_maker import (
     Gradient,
     GradientCheck,
     make_gradient,
-    make_hessian,
 )
 
 
@@ -46,11 +46,15 @@ class Solution:
 
     def get_hessian(self) -> Hessian:
         self.hess_up_to_date = True
-        return make_hessian(
-            self.state.g,
+        H = findiff(
+            lambda x: make_gradient(
+                self.state.g, x, self.state.constraints, self.state.opts, check=None
+            ).value,
             self.x,
             self.state.constraints,
-            self.state.opts,
+        )
+        return Hessian(
+            H,
             max_times=self.x.shape[0]
             if self.state.opts.shaking == "x.shape[0]"
             else self.state.opts.shaking,
