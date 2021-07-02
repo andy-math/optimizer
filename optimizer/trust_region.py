@@ -11,9 +11,6 @@ from overloads.shortcuts import assertNoInfNaN
 from optimizer import pcg
 from optimizer._internals.common import linneq
 from optimizer._internals.common.hessian import Hessian
-from optimizer._internals.pcg.policies import subspace_decay
-from optimizer._internals.pcg.precondition import gradient_precon, hessian_precon
-from optimizer._internals.pcg.status import best_status
 from optimizer._internals.trust_region import options
 from optimizer._internals.trust_region.grad_maker import (
     Gradient,
@@ -142,56 +139,6 @@ def trust_region(
 
         # PCG
         pcg_status = pcg.pcg(grad.value, hessian.H, _constr_shifted, delta)
-        grad_subspace = subspace_decay(
-            grad.value,
-            numpy.zeros(hessian.H.value.shape),
-            pcg.Status(
-                None,
-                0,
-                pcg.Flag.POLICY_ONLY,
-                delta,
-                grad.value,
-                numpy.zeros(hessian.H.value.shape),
-            ),
-            (-grad.value) / gradient_precon(grad.value),
-            delta,
-            _constr_shifted,
-        )
-        gradH_subspace = subspace_decay(
-            grad.value,
-            numpy.zeros(hessian.H.value.shape),
-            pcg.Status(
-                None,
-                0,
-                pcg.Flag.POLICY_ONLY,
-                delta,
-                grad.value,
-                numpy.zeros(hessian.H.value.shape),
-            ),
-            (-grad.value) / hessian_precon(hessian.H.value),
-            delta,
-            _constr_shifted,
-        )
-        # 代换fval
-        pcg_fval = pcg_status.fval
-        grad_fval = grad_subspace.fval
-        gradH_fval = gradH_subspace.fval
-        if pcg_status.x is not None:
-            pcg_status.fval = objective(x + pcg_status.x)
-        if grad_subspace.x is not None:
-            grad_subspace.fval = objective(x + grad_subspace.x)
-        if gradH_subspace.x is not None:
-            gradH_subspace.fval = objective(x + gradH_subspace.x)
-        # 以real fval选择最优策略
-        pcg_status = best_status(pcg_status, grad_subspace, gradH_subspace)
-        # 重建qpval
-        if pcg_status is grad_subspace:
-            pcg_status.fval = grad_fval
-        elif pcg_status is gradH_subspace:
-            pcg_status.fval = gradH_fval
-        else:
-            pcg_status.fval = pcg_fval
-
         iter += 1
         hessian.times += 1
 
@@ -223,9 +170,7 @@ def trust_region(
         # 根据下降率确定信赖域缩放
         reduce: float = new_fval - fval
         ratio = (
-            0
-            if reduce >= 0
-            else (1 if reduce <= pcg_status.fval else reduce / pcg_status.fval)
+            0 if reduce * pcg_status.fval <= 0 else min(reduce / pcg_status.fval, 1.0)
         )
         if ratio >= 0.75 and pcg_status.size >= 0.9 * delta and reduce < 0:
             delta *= 2
