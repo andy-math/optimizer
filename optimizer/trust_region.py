@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Callable, Final, NamedTuple, Optional, Tuple
+from typing import Callable, NamedTuple, Optional, Tuple
 
 import numpy
 from numpy import ndarray
@@ -11,14 +11,10 @@ from overloads.shortcuts import assertNoInfNaN
 
 from optimizer import pcg
 from optimizer._internals.common import linneq
-from optimizer._internals.common.hessian import Hessian
 from optimizer._internals.trust_region import options
-from optimizer._internals.trust_region.grad_maker import (
-    Gradient,
-    GradientCheck,
-    make_gradient,
-    make_hessian,
-)
+from optimizer._internals.trust_region.frozenstate import FrozenState
+from optimizer._internals.trust_region.grad_maker import Gradient
+from optimizer._internals.trust_region.solution import Solution
 
 Trust_Region_Format_T = options.Trust_Region_Format_T
 default_format = options.default_format
@@ -31,63 +27,6 @@ class Trust_Region_Result(NamedTuple):
     delta: float
     gradient: Gradient
     success: bool
-
-
-class _FrozenState(NamedTuple):
-    f: Callable[[ndarray], float]
-    f_np: Callable[[ndarray], ndarray]
-    g: Callable[[ndarray], ndarray]
-    constraints: Tuple[ndarray, ndarray, ndarray, ndarray]
-    opts: Trust_Region_Options
-
-
-class _HessianProxy:
-    value: Hessian
-    times: int = 0
-    max_times: int
-
-    def __init__(self, value: Hessian, max_times: int) -> None:
-        self.value = value
-        self.max_times = max_times
-
-
-class _Solution:
-    state: Final[_FrozenState]
-    fval: Final[float]
-    x: Final[ndarray]
-    grad: Final[Gradient]
-    shifted_constr: Final[Tuple[ndarray, ndarray, ndarray, ndarray]]
-    hess_up_to_date: bool = False
-
-    def __init__(
-        self,
-        iter: int,
-        x: ndarray,
-        g_infnorm: Tuple[(float, float)],
-        state: _FrozenState,
-    ) -> None:
-        self.state = state
-        self.fval = state.f(x)
-        self.x = x
-        grad = make_gradient(
-            state.g,
-            x,
-            state.constraints,
-            state.opts,
-            check=GradientCheck(state.f_np, iter, *g_infnorm),
-        )
-        self.grad = grad
-        A, b, lb, ub = state.constraints
-        self.shifted_constr = (A, b - A @ x, lb - x, ub - x)
-
-    def get_hessian(self) -> _HessianProxy:
-        self.hess_up_to_date = True
-        return _HessianProxy(
-            make_hessian(self.state.g, self.x, self.state.constraints, self.state.opts),
-            self.x.shape[0]
-            if self.state.opts.shaking == "x.shape[0]"
-            else self.state.opts.shaking,
-        )
 
 
 def _input_check(
@@ -148,8 +87,8 @@ def trust_region(
 
     hessian_force_shake: Optional[bool] = False
 
-    state = _FrozenState(_objective, objective_ndarray, _gradient, _constraints, _opts)
-    sol0 = _Solution(0, _x, (numpy.inf, 0.0), state)
+    state = FrozenState(_objective, objective_ndarray, _gradient, _constraints, _opts)
+    sol0 = Solution(0, _x, (numpy.inf, 0.0), state)
 
     iter, delta = 0, state.opts.init_delta
     old_fval, stall_iter = sol0.fval, 0
@@ -203,7 +142,7 @@ def trust_region(
         assert pcg_status.size is not None
 
         # 更新步长、试探点、试探函数值
-        new_sol = _Solution(
+        new_sol = Solution(
             iter, sol.x + pcg_status.x, (sol.grad.infnorm, sol0.grad.infnorm), state
         )
 
@@ -222,7 +161,7 @@ def trust_region(
                 delta = pcg_status.size / 4.0
 
         # 对符合下降要求的候选点进行更新
-        old_sol: _Solution = sol
+        old_sol: Solution = sol
         if new_sol.fval < sol.fval:
             sol = new_sol
             # 下降量超过设定则重置延迟计数
