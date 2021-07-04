@@ -34,19 +34,3 @@ def make_gradient(
         gradient_check(analytic, x, constraints, opts, *check)
     gradient = gradient_cutoff(analytic, x, constraints, opts)
     return Gradient(gradient, float(numpy.max(numpy.abs(gradient))))
-
-
-def make_hessian(
-    g: Callable[[ndarray], ndarray],
-    x: ndarray,
-    constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
-    opts: Trust_Region_Options,
-    *,
-    max_times: int,
-) -> Hessian:
-    H = findiff(
-        lambda x: make_gradient(g, x, constraints, opts, check=None).value,
-        x,
-        constraints,
-    )
-    return Hessian(H, max_times=max_times)
