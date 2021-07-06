@@ -74,7 +74,7 @@ def default_format(
 
 
 class Trust_Region_Options:
-    border_abstol: Optional[float] = None
+    border_abstol: Optional[float] = 1e-10
     tol_step: float = 1.0e-10
     tol_grad: float = 1.0e-6
     abstol_fval: Optional[float] = None
