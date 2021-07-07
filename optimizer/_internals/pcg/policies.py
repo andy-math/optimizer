@@ -2,11 +2,11 @@ import math
 from typing import Tuple
 
 import numpy
-from numpy import ndarray
 from optimizer._internals.common.linneq import check, margin
 from optimizer._internals.pcg.flag import Flag
 from optimizer._internals.pcg.norm_l2 import norm_l2
 from optimizer._internals.pcg.status import Status
+from overloads.typing import ndarray
 
 
 def scale(g: ndarray, H: ndarray, _d: ndarray, delta: float) -> ndarray:
@@ -25,7 +25,7 @@ def scale(g: ndarray, H: ndarray, _d: ndarray, delta: float) -> ndarray:
     """
     norm = norm_l2(_d)
     assert norm > 0
-    d = _d / norm
+    d: ndarray = _d / norm
     gd = float(g @ d)
     dHd = float(d @ H @ d)
     if dHd > 0:
@@ -33,9 +33,9 @@ def scale(g: ndarray, H: ndarray, _d: ndarray, delta: float) -> ndarray:
         return numpy.sign(alpha) * min(math.fabs(alpha), delta) * d  # type: ignore
     else:
         if gd <= 0:
-            return delta * d  # type: ignore
+            return delta * d
         else:
-            return (-delta) * d  # type: ignore
+            return (-delta) * d
 
 
 def subspace_decay(

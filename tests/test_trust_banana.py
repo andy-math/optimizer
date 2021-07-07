@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import numpy
-from numpy import ndarray
 from optimizer import trust_region
+from overloads.typing import ndarray
 
 
 def func(_x: ndarray) -> float:
@@ -34,7 +34,7 @@ class Test_banana:
             opts,
         )
         assert result.success
-        assert numpy.all(numpy.round(result.x, 7) == 1)
+        assert numpy.all(result.x.round(7) == 1)
         assert 20 < result.iter < 60
 
 

@@ -1,8 +1,8 @@
 import numpy
-from numpy import ndarray
 from optimizer._internals.common import findiff
 from overloads import bind_checker, difference, dyn_typing
 from overloads.shortcuts import assertNoInfNaN
+from overloads.typing import ndarray
 
 H = numpy.array([[2, 1], [1, 1]])
 A = numpy.array([[1, 1]], dtype=numpy.float64)
@@ -28,7 +28,7 @@ def grad(x: ndarray) -> ndarray:
     return g  # type: ignore
 
 
-hessian_GT = 2 * H
+hessian_GT: ndarray = 2 * H
 
 
 def compare_hess(h: ndarray, gt: ndarray) -> None:

@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-from typing import Callable, List, Tuple
+from typing import Callable, List, Tuple, cast
 
 import numpy
-from numpy import ndarray
 from optimizer._internals.common import linneq
 from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN
+from overloads.typing import ndarray
 
 
 def findiff_check(
@@ -92,7 +92,7 @@ def findiff(
         if h_forward - h_backward < h_min:
             return numpy.zeros(fx_value.shape)
         result = (_caller(h_forward) - _caller(h_backward)) / (h_forward - h_backward)
-        assert isinstance(result, ndarray)
+        assert isinstance(result, numpy.ndarray)
         return result
 
     h_lb, h_ub = linneq.margin(theta, constraints)
@@ -101,8 +101,8 @@ def findiff(
     h_ub[theta < 0] = numpy.minimum(h_ub[theta < 0], -theta[theta < 0])
 
     # patch 2 (内点兼容性)：对系数做差分的域总是内点上的
-    h_lb = h_lb * (1.0 - 1.0e-4)
-    h_ub = h_ub * (1.0 - 1.0e-4)
+    h_lb = cast(ndarray, h_lb * (1.0 - 1.0e-4))
+    h_ub = cast(ndarray, h_ub * (1.0 - 1.0e-4))
 
     Jacobian: List[ndarray] = []  # List(ndarray((m, )), n)
     for i in range(theta.shape[0]):

@@ -1,8 +1,8 @@
 from typing import Tuple
 
 import numpy
-from numpy import ndarray
 from optimizer._internals.trust_region.options import Trust_Region_Options
+from overloads.typing import ndarray
 
 
 def gradient_cutoff(

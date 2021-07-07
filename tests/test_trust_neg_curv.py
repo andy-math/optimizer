@@ -2,8 +2,8 @@
 import math
 
 import numpy
-from numpy import ndarray
 from optimizer import trust_region
+from overloads.typing import ndarray
 
 
 def func(_x: ndarray) -> float:
@@ -35,7 +35,7 @@ class Test_neg_curve:
             opts,
         )
         assert result.success
-        assert numpy.all(numpy.round(result.x, 6) == 1)
+        assert numpy.all(result.x.round(6) == 1)
         assert 3 < result.iter < 20
 
 

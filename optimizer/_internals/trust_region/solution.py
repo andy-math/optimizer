@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Final, Tuple
 
-from numpy import ndarray
 from optimizer._internals.common.findiff import findiff
 from optimizer._internals.common.hessian import Hessian
 from optimizer._internals.trust_region.frozenstate import FrozenState
@@ -13,6 +12,7 @@ from optimizer._internals.trust_region.grad_maker import (
     GradientCheck,
     make_gradient,
 )
+from overloads.typing import ndarray
 
 
 class Solution:

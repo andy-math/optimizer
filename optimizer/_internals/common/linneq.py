@@ -4,12 +4,12 @@ from __future__ import annotations
 from typing import Optional, Tuple
 
 import numpy
-from numpy import ndarray
 from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN, assertNoNaN
+from overloads.typing import ndarray
 
 
-def noCheck(_: numpy.ndarray) -> None:
+def noCheck(_: ndarray) -> None:
     pass
 
 
@@ -56,7 +56,7 @@ nConstraint = dyn_typing.SizeVar()
 @bind_checker.bind_checker_2(input=_input_checker, output=noCheck)
 def check(
     theta: ndarray, constraints: Tuple[ndarray, ndarray, ndarray, ndarray]
-) -> numpy.ndarray:
+) -> ndarray:
     A, b, lb, ub = constraints
     """检查参数theta是否满足约束[A @ theta <= b]，空约束返回True"""
     lb = lb.reshape((-1, 1))
@@ -65,7 +65,7 @@ def check(
         numpy.all(A @ theta <= b.reshape((-1, 1)), axis=0),
         numpy.all(numpy.logical_and(lb <= theta, theta <= ub), axis=0),
     )
-    assert isinstance(result, ndarray)
+    assert isinstance(result, numpy.ndarray)
     return result
 
 
@@ -115,9 +115,9 @@ def margin(
         => h*A[:, i] == b - A @ theta (*must positive as valid point)
         => h == (b - A @ theta)/A[:, i]
         """
-        residual = b - A @ theta  # (nConst, )
+        residual: ndarray = b - A @ theta  # (nConst, )
         residual.shape = (A.shape[0], 1)  # (nConst, 1)
-        h = residual / A  # (nConst, n)
+        h: ndarray = residual / A  # (nConst, n)
         """
         lb: 所有负数里面取最大
         ub: 所有正数里面取最小
@@ -127,8 +127,8 @@ def margin(
         h_ub = h.copy()
         h_lb[A >= 0] = -numpy.inf
         h_ub[A <= 0] = numpy.inf
-        h_lb = numpy.max(h_lb, axis=0)
-        h_ub = numpy.min(h_ub, axis=0)
+        h_lb = h_lb.max(axis=0)
+        h_ub = h_ub.max(axis=0)
     """
     [lb/ub]补丁
     theta+h == [lb/ub]

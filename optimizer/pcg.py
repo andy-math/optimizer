@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from typing import Optional, Tuple
+from typing import Optional, Tuple, cast
 
 import numpy
-from numpy import ndarray
 from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
+from overloads.typing import ndarray
 
 from optimizer._internals.common.hessian import Hessian
 from optimizer._internals.common.linneq import check, constraint_check
@@ -72,7 +72,7 @@ def _implimentation(
 
     for iter in range(n):
         # 残差收敛性检查
-        if numpy.max(numpy.abs(z)) < numpy.sqrt(_eps):
+        if numpy.abs(z).max() < numpy.sqrt(_eps):
             return exit_(x, None, iter, Flag.RESIDUAL_CONVERGENCE)
 
         # 负曲率检查
@@ -99,8 +99,8 @@ def _implimentation(
         x = x_new
 
         # 更新残差
-        r = r - alpha * ww
-        z = r / R
+        r = cast(ndarray, r - alpha * ww)
+        z = cast(ndarray, r / R)
 
         # 更新搜索方向
         inner2: float = inner1

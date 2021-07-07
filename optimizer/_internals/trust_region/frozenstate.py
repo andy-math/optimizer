@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Callable, NamedTuple, Tuple
 
-from numpy import ndarray
 from optimizer._internals.trust_region import options
+from overloads.typing import ndarray
 
 
 class FrozenState(NamedTuple):

@@ -1,6 +1,6 @@
 import math
 
-from numpy import ndarray
+from overloads.typing import ndarray
 
 
 def norm_l2(x: ndarray) -> float:

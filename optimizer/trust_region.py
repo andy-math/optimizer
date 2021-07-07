@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import Callable, NamedTuple, Optional, Tuple
 
 import numpy
-from numpy import ndarray
 from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN
+from overloads.typing import ndarray
 
 from optimizer import pcg
 from optimizer._internals.common import linneq

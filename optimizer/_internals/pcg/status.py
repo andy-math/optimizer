@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import Optional
 
-from numpy import ndarray
 from optimizer._internals.pcg.flag import Flag
 from optimizer._internals.pcg.norm_l2 import norm_l2
 from optimizer._internals.pcg.qpval import qpval
 from overloads.shortcuts import assertNoInfNaN
+from overloads.typing import ndarray
 
 
 class Status:
