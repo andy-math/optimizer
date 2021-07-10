@@ -34,27 +34,30 @@ def active_set(
     # A@g < 0，当沿着相反于g的方向，也就是 -g 方向走时，A@(-g)上升，到达上界b
     Ag = A @ g < 0
     A, b = A[Ag, :], b[Ag]
+    g_gt0: ndarray = g > 0
+    g_lt0: ndarray = g < 0
+    g_neq0 = numpy.logical_or(g_gt0, g_lt0)
     border = numpy.zeros(g.shape)
     for i in range(A.shape[0]):
         lb, ub = margin(x, (A[[i], :], b[[i]], _lb, _ub))
-        border[g > 0] = -lb[g > 0]  # 正的梯度导致数值减小
-        border[g < 0] = ub[g < 0]  # 负的梯度导致数值变大
-        if border[g != 0].min() <= border_abstol:
+        border[g_gt0] = -lb[g_gt0]  # 正的梯度导致数值减小
+        border[g_lt0] = ub[g_lt0]  # 负的梯度导致数值变大
+        if border[g_neq0].min() <= border_abstol:
             fixing.append(A[[i], :])
     """
     第二段：向fixing中添加lb或ub的实现
     """
     _, _, lb, ub = constraints
     assert g.shape == x.shape == lb.shape == ub.shape
-    selector = numpy.zeros(x.shape)  # 只开一个selector，用reshape副本防止引用穿透
+    selector = numpy.zeros((1, x.shape[0]))
     for i in range(x.shape[0]):
         if g[i] > 0 and x[i] - lb[i] <= border_abstol:  # 正梯度导致数值减小
-            selector[i] = -1.0  # 限制lb，系数为负
-            fixing.append(selector.reshape(1, -1))
+            selector[0, i] = -1.0  # 限制lb，系数为负
+            fixing.append(selector.copy())  # 引用穿透
         elif g[i] < 0 and ub[i] - x[i] <= border_abstol:  # 负梯度导致数值变大
-            selector[i] = 1.0  # 限制ub，系数为正
-            fixing.append(selector.reshape(1, -1))
-        selector[i] = 0.0  # 清除归零，此处不可短路continue
+            selector[0, i] = 1.0  # 限制ub，系数为正
+            fixing.append(selector.copy())  # 引用穿透
+        selector[0, i] = 0.0  # 清除归零，此处不可短路continue
     """
     第三段：从特征值分解里提取0特征向量
     """
