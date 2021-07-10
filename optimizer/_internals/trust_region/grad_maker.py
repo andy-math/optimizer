@@ -13,22 +13,18 @@ class GradientCheck(NamedTuple):
     iter: int
     gradient_infnorm: float
     initial_gradient_infnorm: float
-    constraints: Tuple[ndarray, ndarray, ndarray, ndarray]
-    opts: Trust_Region_Options
 
 
-def get_raw_grad(
+def make_gradient(
     g: Callable[[ndarray], ndarray],
     x: ndarray,
+    constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
+    opts: Trust_Region_Options,
     *,
     check: Optional[GradientCheck],
-) -> RawGradient:
+) -> Gradient:
     analytic = g(x)
     if check is not None:
-        gradient_check(analytic, x, *check)
-    return RawGradient(analytic)
-
-
-def make_gradient(analytic: RawGradient, activeSet: ActiveSet) -> Gradient:
-    gradient = activeSet.cutoff(analytic.raw)
+        gradient_check(analytic, x, constraints, opts, *check)
+    gradient = ActiveSet(RawGradient(analytic), x, constraints, opts).cutoff(analytic)
     return Gradient(gradient, float(numpy.abs(gradient).max()))
