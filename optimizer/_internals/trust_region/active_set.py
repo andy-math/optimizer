@@ -8,7 +8,7 @@ from overloads.typing import ndarray
 
 
 class RawGradient(NamedTuple):
-    value: ndarray
+    raw: ndarray
 
 
 class ActiveSet:
@@ -38,7 +38,7 @@ class ActiveSet:
     ) -> None:
         VVT: Optional[ndarray]
         fixing: List[ndarray] = []
-        g = raw_grad.value
+        g = raw_grad.raw
         lb = numpy.full(x.shape, -numpy.inf)
         ub = numpy.full(x.shape, numpy.inf)
         A, b, _, _ = constraints

@@ -34,5 +34,5 @@ def get_raw_grad(
 
 
 def make_gradient(analytic: RawGradient, activeSet: ActiveSet) -> Gradient:
-    gradient = activeSet.cutoff(analytic.value)
+    gradient = activeSet.cutoff(analytic.raw)
     return Gradient(gradient, float(numpy.abs(gradient).max()))
