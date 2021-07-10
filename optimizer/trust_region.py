@@ -10,11 +10,11 @@ from overloads.typing import ndarray
 
 from optimizer import pcg
 from optimizer._internals.common import linneq
+from optimizer._internals.common.gradient import Gradient
 from optimizer._internals.common.hessian import Hessian
 from optimizer._internals.trust_region import options
 from optimizer._internals.trust_region.constr_preproc import constr_preproc
 from optimizer._internals.trust_region.frozenstate import FrozenState
-from optimizer._internals.trust_region.grad_maker import Gradient
 from optimizer._internals.trust_region.solution import Solution
 
 Trust_Region_Format_T = options.Trust_Region_Format_T

@@ -1,14 +1,11 @@
 import math
-from typing import Final, List, NamedTuple, Optional, Tuple
+from typing import Final, List, Optional, Tuple
 
 import numpy
+from optimizer._internals.common.gradient import RawGradient
 from optimizer._internals.common.linneq import margin
 from optimizer._internals.trust_region.options import Trust_Region_Options
 from overloads.typing import ndarray
-
-
-class RawGradient(NamedTuple):
-    raw: ndarray
 
 
 class ActiveSet:

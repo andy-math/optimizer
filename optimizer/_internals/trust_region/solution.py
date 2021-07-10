@@ -4,11 +4,11 @@
 from typing import Final, Tuple
 
 from optimizer._internals.common.findiff import findiff
+from optimizer._internals.common.gradient import Gradient
 from optimizer._internals.common.hessian import Hessian
 from optimizer._internals.trust_region.active_set import ActiveSet
 from optimizer._internals.trust_region.frozenstate import FrozenState
 from optimizer._internals.trust_region.grad_maker import (
-    Gradient,
     GradientCheck,
     get_raw_grad,
     make_gradient,
