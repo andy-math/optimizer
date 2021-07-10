@@ -70,7 +70,7 @@ class ActiveSet:
             e: ndarray
             v: ndarray
             e, v = numpy.linalg.eig(fixA.T @ fixA)  # type: ignore
-            if e.dtype != numpy.dtype(numpy.float64):
+            if e.dtype.type != numpy.float64:
                 e = e.real
             v = v[:, numpy.abs(e) <= math.sqrt(_eps)]
             if not v.shape[1]:
