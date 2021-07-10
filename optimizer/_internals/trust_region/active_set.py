@@ -69,7 +69,7 @@ class ActiveSet:
             assert fixA.shape[1] == x.shape[0]
             e: ndarray
             v: ndarray
-            e, v = numpy.linalg.eig(A.T @ A)  # type: ignore
+            e, v = numpy.linalg.eig(fixA.T @ fixA)  # type: ignore
             if e.dtype != numpy.dtype(numpy.float64):
                 e = e.real
             v = v[:, numpy.abs(e) <= math.sqrt(_eps)]
