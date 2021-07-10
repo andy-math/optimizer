@@ -90,7 +90,7 @@ def trust_region(
     def objective_ndarray(x: ndarray) -> ndarray:
         return numpy.array([_objective(x)])
 
-    assert linneq.check(_x.reshape(-1, 1), _constraints)
+    assert linneq.check(_x, _constraints)
 
     hessian_force_shake: Optional[bool] = False
 

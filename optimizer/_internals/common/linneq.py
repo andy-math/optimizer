@@ -9,7 +9,7 @@ from overloads.shortcuts import assertNoInfNaN, assertNoNaN
 from overloads.typing import ndarray
 
 
-def noCheck(_: ndarray) -> None:
+def noCheck(_: bool) -> None:
     pass
 
 
@@ -35,13 +35,12 @@ def _input_checker(
 
 
 n = dyn_typing.SizeVar()
-nSample = dyn_typing.SizeVar()
 nConstraint = dyn_typing.SizeVar()
 
 
 @dyn_typing.dyn_check_2(
     input=(
-        dyn_typing.NDArray(numpy.float64, (n, nSample)),
+        dyn_typing.NDArray(numpy.float64, (n,)),
         dyn_typing.Tuple(
             (
                 dyn_typing.NDArray(numpy.float64, (nConstraint, n)),
@@ -51,21 +50,17 @@ nConstraint = dyn_typing.SizeVar()
             )
         ),
     ),
-    output=dyn_typing.NDArray(numpy.bool_, (nSample,)),
+    output=dyn_typing.Bool(),
 )
 @bind_checker.bind_checker_2(input=_input_checker, output=noCheck)
 def check(
     theta: ndarray, constraints: Tuple[ndarray, ndarray, ndarray, ndarray]
-) -> ndarray:
+) -> bool:
     A, b, lb, ub = constraints
     """检查参数theta是否满足约束[A @ theta <= b]，空约束返回True"""
-    lb = lb.reshape((-1, 1))
-    ub = ub.reshape((-1, 1))
-    result = numpy.logical_and(
-        numpy.all(A @ theta <= b.reshape((-1, 1)), axis=0),
-        numpy.all(numpy.logical_and(lb <= theta, theta <= ub), axis=0),
+    result = bool(
+        numpy.all(lb <= theta) and numpy.all(theta <= ub) and numpy.all(A @ theta <= b)
     )
-    assert isinstance(result, numpy.ndarray)
     return result
 
 
@@ -103,7 +98,7 @@ def margin(
     h: 步长, lb: 下界, ub: 上界
     theta超出边界时 AssertionError
     """
-    assert check(theta.reshape((-1, 1)), constraints)
+    assert check(theta, constraints)
     A, b, lb, ub = constraints
     if b.shape[0] == 0:
         h_lb = numpy.full(theta.shape, -numpy.inf)

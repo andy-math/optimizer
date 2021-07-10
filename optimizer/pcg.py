@@ -90,10 +90,8 @@ def _implimentation(
             return exit_(x, d, iter, Flag.OUT_OF_TRUST_REGION)
 
         # 违反约束
-        x_new.shape = (n, 1)
         if not check(x_new, constraints):
             return exit_(x, d, iter, Flag.VIOLATE_CONSTRAINTS)
-        x_new.shape = (n,)
 
         # 更新坐标点
         x = x_new
