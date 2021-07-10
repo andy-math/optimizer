@@ -12,6 +12,7 @@ from optimizer import pcg
 from optimizer._internals.common import linneq
 from optimizer._internals.common.hessian import Hessian
 from optimizer._internals.trust_region import options
+from optimizer._internals.trust_region.constr_preproc import constr_preproc
 from optimizer._internals.trust_region.frozenstate import FrozenState
 from optimizer._internals.trust_region.grad_maker import Gradient
 from optimizer._internals.trust_region.solution import Solution
@@ -87,10 +88,10 @@ def trust_region(
     _constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     _opts: Trust_Region_Options,
 ) -> Trust_Region_Result:
-    # 入口点要做(A, b)的行去重，并将行norm2归一化，对b也要同样操作
     def objective_ndarray(x: ndarray) -> ndarray:
         return numpy.array([_objective(x)])
 
+    _constraints = constr_preproc(_constraints)
     assert linneq.check(_x, _constraints)
 
     hessian_force_shake: Optional[bool] = False
