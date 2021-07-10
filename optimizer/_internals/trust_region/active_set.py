@@ -36,11 +36,11 @@ def active_set(
     A, b = A[Ag, :], b[Ag]
     border = numpy.zeros(g.shape)
     for i in range(A.shape[0]):
-        lb, ub = margin(x, (A[(i,), :], b[(i,)], _lb, _ub))
+        lb, ub = margin(x, (A[[i], :], b[[i]], _lb, _ub))
         border[g > 0] = -lb[g > 0]  # 正的梯度导致数值减小
         border[g < 0] = ub[g < 0]  # 负的梯度导致数值变大
         if border[g != 0].min() <= border_abstol:
-            fixing.append(A[(i,), :])
+            fixing.append(A[[i], :])
     """
     第二段：向fixing中添加lb或ub的实现
     """
