@@ -20,7 +20,7 @@ class Solution:
     state: Final[FrozenState]
     fval: Final[float]
     x: Final[ndarray]
-    activeSet: ActiveSet
+    activeSet: Final[ActiveSet]
     grad: Final[Gradient]
     shifted_constr: Final[Tuple[ndarray, ndarray, ndarray, ndarray]]
     hess_up_to_date: bool = False
