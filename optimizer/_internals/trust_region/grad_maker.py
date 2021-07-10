@@ -26,5 +26,5 @@ def make_gradient(
     analytic = g(x)
     if check is not None:
         gradient_check(analytic, x, constraints, opts, *check)
-    gradient = active_set(analytic, x, constraints, opts)
+    gradient = active_set(analytic, x, constraints, opts.border_abstol)
     return Gradient(gradient, float(numpy.abs(gradient).max()))

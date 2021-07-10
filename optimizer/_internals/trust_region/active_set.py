@@ -3,7 +3,6 @@ from typing import List, Tuple
 
 import numpy
 from optimizer._internals.common.linneq import margin
-from optimizer._internals.trust_region.options import Trust_Region_Options
 from overloads.typing import ndarray
 
 """
@@ -26,7 +25,7 @@ def active_set(
     g: ndarray,
     x: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
-    opts: Trust_Region_Options,
+    border_abstol: float,
 ) -> ndarray:
     fixing: List[ndarray] = []
     lb = numpy.full(x.shape, -numpy.inf)
@@ -41,17 +40,17 @@ def active_set(
         border = numpy.zeros(g.shape)
         border[g > 0] = -lh[g > 0]  # 正的梯度导致数值减小
         border[g < 0] = uh[g < 0]  # 负的梯度导致数值变大
-        if numpy.any(border[g != 0] <= opts.border_abstol):
+        if numpy.any(border[g != 0] <= border_abstol):
             fixing.append(A[i, :])  # 此处不用预制row是为了保持1D一致性，见下
     _, _, lb, ub = constraints
     assert g.shape == x.shape == lb.shape == ub.shape
     arange = numpy.arange(x.shape[0])
     for i in range(x.shape[0]):
         if g[i] > 0:  # 正梯度导致数值减小
-            if x[i] - lb[i] <= opts.border_abstol:
+            if x[i] - lb[i] <= border_abstol:
                 fixing.append(-(arange == i).astype(numpy.float64))  # 限制lb
         elif g[i] < 0:  # 负梯度导致数值变大
-            if ub[i] - x[i] <= opts.border_abstol:
+            if ub[i] - x[i] <= border_abstol:
                 fixing.append((arange == i).astype(numpy.float64))  # 限制ub
     if len(fixing):
         _eps = float(numpy.finfo(numpy.float64).eps)
