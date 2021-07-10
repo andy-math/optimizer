@@ -1,8 +1,8 @@
 from typing import Callable, NamedTuple, Optional, Tuple
 
 import numpy
-from optimizer._internals.common.gradient import Gradient, RawGradient
-from optimizer._internals.trust_region.active_set import ActiveSet
+from optimizer._internals.common.gradient import Gradient
+from optimizer._internals.trust_region.active_set import active_set
 from optimizer._internals.trust_region.grad_check import gradient_check
 from optimizer._internals.trust_region.options import Trust_Region_Options
 from overloads.typing import ndarray
@@ -26,5 +26,5 @@ def make_gradient(
     analytic = g(x)
     if check is not None:
         gradient_check(analytic, x, constraints, opts, *check)
-    gradient = ActiveSet(RawGradient(analytic), x, constraints, opts).cutoff(analytic)
+    gradient = active_set(analytic, x, constraints, opts)
     return Gradient(gradient, float(numpy.abs(gradient).max()))
