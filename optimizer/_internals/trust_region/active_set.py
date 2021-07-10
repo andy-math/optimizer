@@ -20,7 +20,7 @@ class ActiveSet:
     其中，norm2(v)^2 === 1 (单位化)，上式简化为
     g = v @ (g@v).T
     进一步可以简化为
-    g = v @ v.T @ g.T
+    g = v @ v.T @ g
     因此，Type`ActiveSet`定义为[v @ v.T]
     当特征值全为0时，由正交矩阵，上式变为：
     g = eye @ g
