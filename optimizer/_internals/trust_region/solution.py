@@ -22,6 +22,19 @@ class Solution:
     shifted_constr: Final[Tuple[ndarray, ndarray, ndarray, ndarray]]
     hess_up_to_date: bool = False
 
+    # 对每一个当前的sol计算有效集A
+    # 对A.T @ A分解得到0特征值列向量v, v是正交矩阵（的一些列）
+    # 对从此处产生的grad, cut-off策略使用如下：
+    # g = v @ [(g@v)/sum(v*v,axis=0)].T
+    # 其中，norm2(v)^2 === 1 (单位化)，上式简化为
+    # g = v @ (g@v).T
+    # 进一步可以简化为
+    # g = v @ v.T @ g.T
+    # 因此，Type`ActiveSet`定义为[v @ v.T]
+    # 当特征值全为0时，由正交矩阵，上式变为：
+    # g = eye @ g
+    # 当特征值全不为0时，定义[v @ v.T]为0，简记为None
+
     def __init__(
         self,
         iter: int,

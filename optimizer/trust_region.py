@@ -87,6 +87,7 @@ def trust_region(
     _constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     _opts: Trust_Region_Options,
 ) -> Trust_Region_Result:
+    # 入口点要做(A, b)的行去重，并将行norm2归一化，对b也要同样操作
     def objective_ndarray(x: ndarray) -> ndarray:
         return numpy.array([_objective(x)])
 
