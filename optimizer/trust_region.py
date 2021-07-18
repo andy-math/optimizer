@@ -12,7 +12,7 @@ from optimizer import pcg
 from optimizer._internals.common import linneq
 from optimizer._internals.common.gradient import Gradient
 from optimizer._internals.common.hessian import Hessian
-from optimizer._internals.trust_region import options
+from optimizer._internals.trust_region import format, options
 from optimizer._internals.trust_region.constr_preproc import constr_preproc
 from optimizer._internals.trust_region.frozenstate import FrozenState
 from optimizer._internals.trust_region.solution import Solution
@@ -43,7 +43,7 @@ class _trust_region_impl:
         constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
         opts: Trust_Region_Options,
     ) -> None:
-        options._format_times = 0
+        format._format_times = 0
 
         def objective_ndarray(x: ndarray) -> ndarray:
             return numpy.array([objective(x)])
@@ -58,10 +58,12 @@ class _trust_region_impl:
             sol.x, self.iter, self.delta, sol.grad, sol.get_hessian(), success
         )
 
-    def _output(self, sol: Solution, pcg_status: pcg.Status, hessian: Hessian) -> None:
+    def _output(
+        self, sol: Solution, pcg_status: Optional[pcg.Status], hessian: Hessian
+    ) -> None:
         if self.state.opts.display:
             print(
-                options.format(
+                format.format(
                     self.iter,
                     sol.fval,
                     sol.grad.infnorm,
@@ -177,15 +179,7 @@ class _trust_region_impl:
 
         hessian = sol0.get_hessian()
 
-        options.format(
-            self.iter,
-            sol0.fval,
-            sol0.grad.infnorm,
-            None,
-            hessian.ill,
-            self.state.opts,
-            1,
-        )
+        self._output(sol0, None, hessian)
 
         sol = sol0
 
