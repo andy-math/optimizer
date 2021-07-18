@@ -197,6 +197,11 @@ class _trust_region_impl:
             hessian_force_shake = False
 
 
+"""
+过程式的接口
+"""
+
+
 def _input_check(
     input: Tuple[
         Callable[[ndarray], float],
