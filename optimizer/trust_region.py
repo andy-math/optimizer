@@ -64,14 +64,44 @@ class _trust_region_impl:
         if self.state.opts.display:
             print(format.format(self.iter, sol, hessian, pcg_status))
 
+    def stop_criteria(
+        self,
+        old_sol: Solution,
+        sol: Solution,
+        pcg_status: pcg.Status,
+        hessian_force_shake: bool,
+    ) -> Union[Tuple[Solution, pcg.Status, bool], Trust_Region_Result]:
+        if pcg_status.x is not None:
+            assert pcg_status.fval is not None
+            assert pcg_status.size is not None
+            # PCG正定收敛
+            if pcg_status.flag in (pcg.Flag.RESIDUAL_CONVERGENCE, pcg.Flag.POLICY_ONLY):
+                # 梯度足够小的case无关乎hessian信息
+                if sol.grad.infnorm < self.state.opts.tol_grad:
+                    return self._make_result(sol, success=True)
+                # 步长足够小的case要考虑hessian更新
+                if pcg_status.size < self.state.opts.tol_step:
+                    if not old_sol.hess_up_to_date:
+                        return sol, pcg_status, True
+                    return self._make_result(sol, success=True)
+
+        # 下降量过低的case要考虑hessian更新
+        max_stall_iter = self.state.opts.max_stall_iter
+        if max_stall_iter is not None and self.stall_iter >= max_stall_iter:
+            if not old_sol.hess_up_to_date:
+                return sol, pcg_status, True
+            return self._make_result(sol, success=True)
+        # 信赖域太小
+        if self.delta < self.state.opts.tol_step:
+            return self._make_result(sol, success=False)
+        # 迭代次数超过要求
+        if self.iter > self.state.opts.max_iter:
+            return self._make_result(sol, success=False)
+        return sol, pcg_status, hessian_force_shake
+
     def main_loop(
         self, sol0: Solution, sol: Solution, hessian: Hessian
-    ) -> Union[Tuple[Solution, pcg.Status, bool], Trust_Region_Result]:
-        # 失败情形的截止条件放在最前是因为pcg失败时的continue会导致后面代码被跳过
-        if self.delta < self.state.opts.tol_step:  # 信赖域太小
-            return self._make_result(sol, success=False)
-        if self.iter > self.state.opts.max_iter:  # 迭代次数超过要求
-            return self._make_result(sol, success=False)
+    ) -> Tuple[Optional[Solution], Solution, pcg.Status, bool]:
 
         # PCG
         pcg_status = pcg.pcg(sol.grad.value, hessian, sol.shifted_constr, self.delta)
@@ -80,13 +110,11 @@ class _trust_region_impl:
 
         # PCG失败recover
         if pcg_status.x is None:
-            _force_shake: bool
             if not sol.hess_up_to_date:
-                _force_shake = True
+                return None, sol, pcg_status, True
             else:
-                _force_shake = False
                 self.delta /= 4.0
-            return sol, pcg_status, _force_shake
+                return None, sol, pcg_status, False
         assert pcg_status.fval is not None
         assert pcg_status.size is not None
 
@@ -98,7 +126,7 @@ class _trust_region_impl:
             self.state,
         )
 
-        hessian_force_shake: Optional[bool] = None
+        hessian_force_shake: bool
 
         # 根据下降率确定信赖域缩放
         reduce: float = new_sol.fval - sol.fval
@@ -107,12 +135,14 @@ class _trust_region_impl:
         )
         if ratio >= 0.75 and pcg_status.size >= 0.9 * self.delta and reduce < 0:
             self.delta *= 2
+            hessian_force_shake = False
         elif ratio <= 0.25 or reduce > 0:
             if not sol.hess_up_to_date:
                 assert hessian_force_shake is None
                 hessian_force_shake = True
             else:
                 self.delta = pcg_status.size / 4.0
+                hessian_force_shake = False
 
         # 对符合下降要求的候选点进行更新
         old_sol: Solution = sol
@@ -126,36 +156,7 @@ class _trust_region_impl:
                 self.stall_iter += 1
             else:
                 self.old_fval, self.stall_iter = sol.fval, 0
-
-        # PCG正定收敛
-        if pcg_status.flag in (pcg.Flag.RESIDUAL_CONVERGENCE, pcg.Flag.POLICY_ONLY):
-            # 梯度足够小的case无关乎hessian信息
-            if sol.grad.infnorm < self.state.opts.tol_grad:
-                return self._make_result(sol, success=True)
-            # 步长足够小的case要考虑hessian更新
-            if pcg_status.size < self.state.opts.tol_step:
-                if not old_sol.hess_up_to_date:
-                    assert hessian_force_shake or hessian_force_shake is None
-                    hessian_force_shake = True
-                    return sol, pcg_status, hessian_force_shake
-                return self._make_result(sol, success=True)
-
-        # 下降量过低的case要考虑hessian更新
-        if (
-            self.state.opts.max_stall_iter is not None
-            and self.stall_iter >= self.state.opts.max_stall_iter
-        ):
-            if not old_sol.hess_up_to_date:
-                assert hessian_force_shake or hessian_force_shake is None
-                hessian_force_shake = True
-                return sol, pcg_status, hessian_force_shake
-            return self._make_result(sol, success=True)
-
-        if hessian_force_shake is not None:
-            assert hessian_force_shake
-            return sol, pcg_status, hessian_force_shake
-        hessian_force_shake = False
-        return sol, pcg_status, hessian_force_shake
+        return old_sol, sol, pcg_status, hessian_force_shake
 
     def _run(self, x: ndarray) -> Trust_Region_Result:
         assert linneq.check(x, self.state.constraints)
@@ -174,10 +175,16 @@ class _trust_region_impl:
         sol = sol0
 
         while True:
-            result = self.main_loop(sol0, sol, hessian)
-            if isinstance(result, Trust_Region_Result):
-                return result
-            sol, pcg_status, hessian_force_shake = result
+            old_sol, sol, pcg_status, hessian_force_shake = self.main_loop(
+                sol0, sol, hessian
+            )
+            if old_sol is not None:
+                result = self.stop_criteria(
+                    old_sol, sol, pcg_status, hessian_force_shake
+                )
+                if isinstance(result, Trust_Region_Result):
+                    return result
+                sol, pcg_status, hessian_force_shake = result
 
             self._output(sol, pcg_status, hessian)
 
