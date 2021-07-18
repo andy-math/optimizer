@@ -30,6 +30,7 @@ class Test_neg_curve:
         result = trust_region.trust_region(
             func,
             grad,
+            ["x"],
             numpy.array([9.5]),
             (constr_A, constr_b, constr_lb, constr_ub),
             opts,
