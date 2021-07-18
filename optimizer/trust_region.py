@@ -174,7 +174,6 @@ class _trust_region_impl:
         sol = sol0
 
         while True:
-
             result = self.main_loop(sol0, sol, hessian)
             if isinstance(result, Trust_Region_Result):
                 return result
