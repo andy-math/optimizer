@@ -24,7 +24,7 @@ class Test_neg_curve:
         constr_lb = numpy.array([0.25])
         constr_ub = numpy.array([10.0])
 
-        opts = trust_region.Trust_Region_Options(max_iter=500, filename="trust_neg.py")
+        opts = trust_region.Trust_Region_Options(max_iter=500)
         opts.check_rel = 1
         opts.check_abs = 1e-6
         result = trust_region.trust_region(
