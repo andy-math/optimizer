@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 
-from typing import Callable, Final, List, NamedTuple, Optional, Tuple, Union
+from typing import Callable, Final, NamedTuple, Optional, Tuple, Union
 
 import numpy
 from overloads import bind_checker, dyn_typing
@@ -40,7 +40,6 @@ class _trust_region_impl:
 
     def __init__(
         self,
-        var_names: Tuple[str, ...],
         objective: Callable[[ndarray], float],
         gradient: Callable[[ndarray], ndarray],
         constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
@@ -56,7 +55,7 @@ class _trust_region_impl:
         self.abstol_fval = opts.abstol_fval
         self.max_stall_iter = opts.max_stall_iter
         self.state = FrozenState(
-            var_names, objective, objective_ndarray, gradient, constraints, opts
+            objective, objective_ndarray, gradient, constraints, opts
         )
 
     def _make_result(self, sol: Solution, *, success: bool) -> Trust_Region_Result:
@@ -211,7 +210,6 @@ def _input_check(
     input: Tuple[
         Callable[[ndarray], float],
         Callable[[ndarray], ndarray],
-        List[str],
         ndarray,
         Tuple[
             ndarray,
@@ -222,7 +220,7 @@ def _input_check(
         Trust_Region_Options,
     ]
 ) -> None:
-    _, _, _, x, constraints, _ = input
+    _, _, x, constraints, _ = input
     linneq.constraint_check(constraints, theta=x)
 
 
@@ -234,11 +232,10 @@ N = dyn_typing.SizeVar()
 nConstraint = dyn_typing.SizeVar()
 
 
-@dyn_typing.dyn_check_6(
+@dyn_typing.dyn_check_5(
     input=(
         dyn_typing.Callable(),
         dyn_typing.Callable(),
-        dyn_typing.List(dyn_typing.Str(), N),
         dyn_typing.NDArray(numpy.float64, (N,)),
         dyn_typing.Tuple(
             (
@@ -252,15 +249,12 @@ nConstraint = dyn_typing.SizeVar()
     ),
     output=dyn_typing.Class(Trust_Region_Result),
 )
-@bind_checker.bind_checker_6(input=_input_check, output=_output_check)
+@bind_checker.bind_checker_5(input=_input_check, output=_output_check)
 def trust_region(
     objective: Callable[[ndarray], float],
     gradient: Callable[[ndarray], ndarray],
-    var_names: List[str],
     x: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     opts: Trust_Region_Options,
 ) -> Trust_Region_Result:
-    return _trust_region_impl(
-        tuple(var_names), objective, gradient, constraints, opts
-    )._run(x)
+    return _trust_region_impl(objective, gradient, constraints, opts)._run(x)

@@ -30,7 +30,6 @@ def run(opts: trust_region.Trust_Region_Options) -> trust_region.Trust_Region_Re
     return trust_region.trust_region(
         func,
         grad,
-        ["x1"],
         numpy.array([9.5]),
         (constr_A, constr_b, constr_lb, constr_ub),
         opts,

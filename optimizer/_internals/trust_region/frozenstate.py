@@ -8,7 +8,6 @@ from overloads.typing import ndarray
 
 
 class FrozenState(NamedTuple):
-    var_names: Tuple[str, ...]
     f: Callable[[ndarray], float]
     f_np: Callable[[ndarray], ndarray]
     g: Callable[[ndarray], ndarray]

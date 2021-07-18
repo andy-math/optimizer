@@ -29,7 +29,6 @@ class Test_banana:
         result = trust_region.trust_region(
             func,
             grad,
-            ["x1", "x2"],
             numpy.array([-1.9, 2]),
             (constr_A, constr_b, constr_lb, constr_ub),
             opts,
