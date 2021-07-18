@@ -142,7 +142,6 @@ class _trust_region_impl:
             hessian_force_shake = False
         elif ratio <= 0.25 or reduce > 0:
             if not sol.hess_up_to_date:
-                assert hessian_force_shake is None
                 hessian_force_shake = True
             else:
                 self.delta = pcg_status.size / 4.0
