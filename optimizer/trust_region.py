@@ -100,7 +100,7 @@ class _trust_region_impl:
             return self._make_result(sol, success=False)
         return sol, pcg_status, hessian_force_shake
 
-    def main_loop(
+    def _main_loop(
         self, sol0: Solution, sol: Solution, hessian: Hessian
     ) -> Tuple[Optional[Solution], Solution, pcg.Status, bool]:
 
@@ -178,7 +178,7 @@ class _trust_region_impl:
         sol = sol0
 
         while True:
-            old_sol, sol, pcg_status, hessian_force_shake = self.main_loop(
+            old_sol, sol, pcg_status, hessian_force_shake = self._main_loop(
                 sol0, sol, hessian
             )
             if old_sol is not None:
