@@ -1,7 +1,8 @@
 from typing import Callable, Optional, Tuple
 
-from optimizer._internals.common.findiff import findiff
-from optimizer._internals.trust_region.options import Trust_Region_Options
+import numpy
+from optimizer._internals.findiff import findiff
+from optimizer._internals.options import Trust_Region_Options
 from overloads import difference
 from overloads.typing import ndarray
 
@@ -45,7 +46,10 @@ def gradient_check(
         findiff_.shape = (findiff_.shape[1],)
 
     if need_rel_check:
-        if difference.relative(analytic, findiff_) > opts.check_rel:
+        index = ~numpy.logical_and(
+            numpy.abs(analytic) <= opts.tol_grad, numpy.abs(findiff_) <= opts.tol_grad
+        )
+        if difference.relative(analytic[index], findiff_[index]) > opts.check_rel:
             raise Grad_Check_Failed(iter, difference.relative, analytic, findiff_)
     if opts.check_abs is not None:
         if difference.absolute(analytic, findiff_) > opts.check_abs:

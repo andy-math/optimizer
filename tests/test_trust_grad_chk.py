@@ -3,7 +3,7 @@ import math
 
 import numpy
 from optimizer import trust_region
-from optimizer._internals.trust_region.grad_check import Grad_Check_Failed
+from optimizer._internals.grad_check import Grad_Check_Failed
 from overloads import difference
 from overloads.capture_exceptions import Captured_Exception, capture_exceptions
 from overloads.typing import ndarray
@@ -39,14 +39,14 @@ def run(opts: trust_region.Trust_Region_Options) -> trust_region.Trust_Region_Re
 
 class Test_grad_check:
     def test1(self) -> None:
-        opts = trust_region.Trust_Region_Options(max_iter=500)
+        opts = trust_region.Trust_Region_Options(max_iter=500, filename="grad_chk.txt")
         result = capture_exceptions(run, opts, catch=Grad_Check_Failed)
         assert isinstance(result, Captured_Exception)
         assert isinstance(result.exception, Grad_Check_Failed)
         assert result.exception.checker == difference.relative
 
     def test2(self) -> None:
-        opts = trust_region.Trust_Region_Options(max_iter=500)
+        opts = trust_region.Trust_Region_Options(max_iter=500, filename="grad_chk.txt")
         opts.check_rel = numpy.inf
         opts.check_abs = 1.0e-6
         result = capture_exceptions(run, opts, catch=Grad_Check_Failed)

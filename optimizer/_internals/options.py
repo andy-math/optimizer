@@ -1,4 +1,4 @@
-from typing import Literal, Optional, Union
+from typing import Optional
 
 
 class Trust_Region_Options:
@@ -11,9 +11,10 @@ class Trust_Region_Options:
     max_iter: int
     check_rel: float = 1.0e-2
     check_abs: Optional[float] = None
-    check_iter: Optional[int] = None  # 0表示只在最优化开始前进行一次梯度检查，-1表示完全关闭检查，默认的None表示始终进行检查
-    shaking: Union[Literal["x.shape[0]"], int] = "x.shape[0]"
+    check_iter: Optional[int] = None  # 0表示只在最优化开始前进行一次梯
     display: bool = True
+    filename: str
 
-    def __init__(self, *, max_iter: int) -> None:
+    def __init__(self, *, max_iter: int, filename: str) -> None:
         self.max_iter = max_iter
+        self.filename = filename

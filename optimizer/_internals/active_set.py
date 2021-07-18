@@ -2,7 +2,7 @@ import math
 from typing import List, Tuple
 
 import numpy
-from optimizer._internals.common.linneq import margin
+from optimizer._internals.linneq import margin
 from overloads.typing import ndarray
 
 """

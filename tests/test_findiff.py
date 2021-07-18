@@ -1,5 +1,5 @@
 import numpy
-from optimizer._internals.common import findiff
+from optimizer._internals import findiff
 from overloads import bind_checker, difference, dyn_typing
 from overloads.shortcuts import assertNoInfNaN
 from overloads.typing import ndarray

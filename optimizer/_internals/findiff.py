@@ -2,7 +2,7 @@
 from typing import Callable, List, Tuple, cast
 
 import numpy
-from optimizer._internals.common import linneq
+from optimizer._internals import linneq
 from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN
 from overloads.typing import ndarray

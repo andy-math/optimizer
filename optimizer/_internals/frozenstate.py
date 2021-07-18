@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
 
-from typing import Callable, NamedTuple, Tuple
+from typing import Callable, NamedTuple, TextIO, Tuple
 
-from optimizer._internals.trust_region import options
+from optimizer._internals import options
 from overloads.typing import ndarray
 
 
@@ -14,3 +14,4 @@ class FrozenState(NamedTuple):
     g: Callable[[ndarray], ndarray]
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray]
     opts: options.Trust_Region_Options
+    file: TextIO
