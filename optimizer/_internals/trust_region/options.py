@@ -1,4 +1,4 @@
-from typing import Callable, Literal, Optional, Union
+from typing import Literal, Optional, Union
 
 
 class Trust_Region_Options:
@@ -13,9 +13,7 @@ class Trust_Region_Options:
     check_abs: Optional[float] = None
     check_iter: Optional[int] = None  # 0表示只在最优化开始前进行一次梯度检查，-1表示完全关闭检查，默认的None表示始终进行检查
     shaking: Union[Literal["x.shape[0]"], int] = "x.shape[0]"
-    posdef: Optional[Callable[[bool], str]]
     display: bool = True
 
     def __init__(self, *, max_iter: int) -> None:
         self.max_iter = max_iter
-        self.posdef = lambda ill: "-*- ill -*-" if ill else "           "

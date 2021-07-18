@@ -1,8 +1,9 @@
 import math
 from typing import Dict, List, Literal, Optional
 
+from optimizer._internals.common.hessian import Hessian
 from optimizer._internals.pcg.status import Status
-from optimizer._internals.trust_region.options import Trust_Region_Options
+from optimizer._internals.trust_region.solution import Solution
 
 _format_times: int = 0
 _format_width: Dict[str, int] = {
@@ -59,29 +60,23 @@ def _format(
 
 
 def format(
-    iter: int,
-    fval: float,
-    grad_infnorm: float,
-    pcg_status: Optional[Status],
-    ill: bool,
-    opts: Trust_Region_Options,
-    times_after_hessian_shaking: int,
+    iter: int, sol: Solution, hessian: Hessian, pcg_status: Optional[Status]
 ) -> str:
     if _format_times == 0:
-        assert times_after_hessian_shaking == 0
+        assert hessian.times == 0
     else:
-        assert times_after_hessian_shaking >= 1
+        assert hessian.times >= 1
     return _format(
         iter=iter,
-        fval=fval,
+        fval=sol.fval,
         step=(
             math.nan
             if pcg_status is None or pcg_status.size is None
             else pcg_status.size
         ),
-        grad=grad_infnorm,
+        grad=sol.grad.infnorm,
         CGiter=0 if pcg_status is None else pcg_status.iter,
         CGexit="None" if pcg_status is None else pcg_status.flag.name,
-        posdef="" if opts.posdef is None else opts.posdef(ill),
-        shaking="Shaking" if times_after_hessian_shaking == 1 else "       ",
+        posdef="-*- ill -*-" if hessian.ill else "           ",
+        shaking="Shaking" if hessian.times == 1 else "       ",
     )

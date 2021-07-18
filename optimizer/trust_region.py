@@ -62,17 +62,7 @@ class _trust_region_impl:
         self, sol: Solution, pcg_status: Optional[pcg.Status], hessian: Hessian
     ) -> None:
         if self.state.opts.display:
-            print(
-                format.format(
-                    self.iter,
-                    sol.fval,
-                    sol.grad.infnorm,
-                    pcg_status,
-                    hessian.ill,
-                    self.state.opts,
-                    hessian.times,
-                )
-            )
+            print(format.format(self.iter, sol, hessian, pcg_status))
 
     def main_loop(
         self, sol0: Solution, sol: Solution, hessian: Hessian
