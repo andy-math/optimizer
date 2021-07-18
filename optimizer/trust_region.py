@@ -143,6 +143,8 @@ class _trust_region_impl:
             else:
                 self.delta = pcg_status.size / 4.0
                 hessian_force_shake = False
+        else:
+            hessian_force_shake = False
 
         # 对符合下降要求的候选点进行更新
         old_sol: Solution = sol
