@@ -17,8 +17,6 @@ from optimizer._internals.trust_region.constr_preproc import constr_preproc
 from optimizer._internals.trust_region.frozenstate import FrozenState
 from optimizer._internals.trust_region.solution import Solution
 
-Trust_Region_Format_T = options.Trust_Region_Format_T
-default_format = options.default_format
 Trust_Region_Options = options.Trust_Region_Options
 
 
@@ -45,6 +43,8 @@ class _trust_region_impl:
         constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
         opts: Trust_Region_Options,
     ) -> None:
+        options._format_times = 0
+
         def objective_ndarray(x: ndarray) -> ndarray:
             return numpy.array([objective(x)])
 
@@ -59,15 +59,18 @@ class _trust_region_impl:
         )
 
     def _output(self, sol: Solution, pcg_status: pcg.Status, hessian: Hessian) -> None:
-        options.output(
-            self.iter,
-            sol.fval,
-            sol.grad.infnorm,
-            pcg_status,
-            hessian.ill,
-            self.state.opts,
-            hessian.times,
-        )
+        if self.state.opts.display:
+            print(
+                options.format(
+                    self.iter,
+                    sol.fval,
+                    sol.grad.infnorm,
+                    pcg_status,
+                    hessian.ill,
+                    self.state.opts,
+                    hessian.times,
+                )
+            )
 
     def main_loop(
         self, sol0: Solution, sol: Solution, hessian: Hessian
@@ -174,7 +177,7 @@ class _trust_region_impl:
 
         hessian = sol0.get_hessian()
 
-        options.output(
+        options.format(
             self.iter,
             sol0.fval,
             sol0.grad.infnorm,
