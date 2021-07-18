@@ -30,6 +30,8 @@ class Trust_Region_Result(NamedTuple):
 
 
 class _trust_region_impl:
+    abstol_fval: Final[Optional[float]]
+    max_stall_iter: Final[Optional[int]]
     state: Final[FrozenState]
     iter: int
     delta: float
@@ -50,6 +52,9 @@ class _trust_region_impl:
             return numpy.array([objective(x)])
 
         constraints = constr_preproc(constraints)
+
+        self.abstol_fval = opts.abstol_fval
+        self.max_stall_iter = opts.max_stall_iter
         self.state = FrozenState(
             var_names, objective, objective_ndarray, gradient, constraints, opts
         )
@@ -87,8 +92,7 @@ class _trust_region_impl:
                     return self._make_result(sol, success=True)
 
         # 下降量过低的case要考虑hessian更新
-        max_stall_iter = self.state.opts.max_stall_iter
-        if max_stall_iter is not None and self.stall_iter >= max_stall_iter:
+        if self.max_stall_iter is not None and self.stall_iter >= self.max_stall_iter:
             if not old_sol.hess_up_to_date:
                 return sol, pcg_status, True
             return self._make_result(sol, success=True)
@@ -153,8 +157,8 @@ class _trust_region_impl:
             sol = new_sol
             # 下降量超过设定则重置延迟计数
             if (
-                self.state.opts.abstol_fval is not None
-                and self.old_fval - sol.fval < self.state.opts.abstol_fval
+                self.abstol_fval is not None
+                and self.old_fval - sol.fval < self.abstol_fval
             ):
                 self.stall_iter += 1
             else:
