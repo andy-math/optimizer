@@ -235,8 +235,12 @@ def pcg(
     orig_g = g
 
     d = clip_direction(d, g, H, constraints, delta)
+    if d @ d > 1:
+        d = safe_normalize(d)
 
     g = clip_direction(g, g, H, constraints, delta)
+    if g @ g > 1:
+        g = safe_normalize(g)
 
     g = -g  # 改成下降方向
 
