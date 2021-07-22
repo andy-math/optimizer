@@ -28,5 +28,3 @@ class Status:
         self.flag = flag
         self.size = norm_l2(x)
         assert self.size / delta < 1.0 + 1e-6
-        if flag != Flag.RESIDUAL_CONVERGENCE:
-            assert self.size != 0
