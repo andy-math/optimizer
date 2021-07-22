@@ -32,9 +32,7 @@ class Test_pcg:
 
             H = (H.T + H) / 2  # type: ignore
             g = numpy.random.randn(dim)
-            status, dir = pcg._implimentation(
-                g, H, numpy.sqrt(numpy.sum(H * H, axis=1)), constraints, delta
-            )
+            status, dir = pcg._implimentation(g, H, constraints, delta)
             assert status.flag == pcg.Flag.RESIDUAL_CONVERGENCE
             assert status.iter < dim
             assert dir is None
@@ -62,9 +60,7 @@ class Test_pcg:
             ).max() < math.sqrt(EPS)
 
             g = numpy.random.randn(dim)
-            status, dir = pcg._implimentation(
-                g, H, numpy.sqrt(numpy.sum(H * H, axis=1)), constraints, delta
-            )
+            status, dir = pcg._implimentation(g, H, constraints, delta)
             if status.flag == pcg.Flag.RESIDUAL_CONVERGENCE:
                 assert dir is None
                 g = H @ status.x + g
