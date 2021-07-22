@@ -117,6 +117,65 @@ def _implimentation(
     return exit_(x, None, iter, Flag.RESIDUAL_CONVERGENCE)
 
 
+def clip_sol(
+    x: ndarray,
+    g: ndarray,
+    H: ndarray,
+    constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
+    delta: float,
+) -> ndarray:
+    """
+    x: S个N-dim的列向量
+    先 assert 它们都是单位向量
+    - 根据a = argmin f(a): a * gx + a^2 * 0.5xHx获得缩放尺度
+        xHx > 0: 凸问题，a = -gx/xHx
+        xHx <= 0: 非凸问题, a = sign(-gx) * Inf
+    - 使用delta卡缩放尺度
+    - 使用 a * Ax <= b 卡缩放尺度:
+        a <= min(b/(Ax))
+        出现负数说明二者异号，a无界
+        出现NaN, Inf说明Ax不影响界，a无界
+        需要使用(1-1e-4)避免刚性撞击边界
+    """
+    _eps = float(numpy.finfo(numpy.float64).eps)
+    # 单位向量断言
+    norm_x = numpy.sqrt(numpy.sum(x * x, axis=1))
+    assert numpy.abs(norm_x - 1).max() < numpy.sqrt(_eps)
+    # 最优二次型缩放
+    gx: ndarray = g @ x
+    xHx = numpy.sum(x * (H @ x), axis=0)
+    a = -gx / xHx
+    a[xHx <= 0] = numpy.sign(-gx) * numpy.inf
+    # delta
+    a = numpy.sign(a) * numpy.minimum(numpy.abs(a), delta)
+    # a * Ax <= b
+    lhs = numpy.concatenate(  # type: ignore
+        (
+            -x,  # -x <= -lb
+            x,  # x <= ub
+            constraints[0] @ x,  # Ax <= b
+        ),
+        axis=0,
+    )
+    rhs: ndarray = numpy.concatenate(  # type: ignore
+        (
+            -constraints[2],  # -x <= -lb
+            constraints[3],  # x <= ub
+            constraints[1],  # Ax <= b
+        )
+    )
+    bound = rhs.reshape(-1, 1) / lhs
+    bound[lhs == 0] = numpy.inf
+    bound[bound < 0] = numpy.inf
+    bound = (1.0 - 1.0e-4) * bound.min(axis=0)
+
+    a = numpy.minimum(a, bound)
+
+    qpval = a * gx + 0.5 * (a * xHx)
+    index = int(numpy.argmin(qpval))
+    return a[index] * x[:, index]  # type: ignore
+
+
 def _pcg_input_check(
     input: Tuple[ndarray, Hessian, Tuple[ndarray, ndarray, ndarray, ndarray], float]
 ) -> None:
@@ -162,43 +221,31 @@ def pcg(
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
 ) -> Status:
+    ret1, direct = _implimentation(g, H.value, constraints, delta)
+    d = numpy.zeros(g.shape) if ret1.x is None else ret1.x
+    if direct is not None:
+        size = numpy.sqrt(delta * delta - d @ d)
+        d = d + size * direct
 
-    return status.best_status(
-        _best_policy(g, H.value, constraints, delta),
-        _best_policy(g, H.value, constraints, delta),
-        subspace_decay(
-            g,
-            H.value,
-            Status(None, 0, Flag.POLICY_ONLY, delta, g, H.value),
-            numpy.linalg.solve(H.value, -g)  # type: ignore
-            if H.pinv is None
-            else H.pinv @ (-g),
-            delta,
-            constraints,
-        ),
-    )
+    orig_g = g
 
+    d_infnorm = numpy.abs(d).max()
+    if d_infnorm != 0:
+        d = d / d_infnorm
+        d_sqnorm = numpy.sqrt(d @ d)
+        if d_sqnorm != 0:
+            d = d / d_sqnorm
 
-def _best_policy(
-    g: ndarray,
-    H: ndarray,
-    constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
-    delta: float,
-) -> Status:
+    g_infnorm = numpy.abs(g).max()
+    if g_infnorm != 0:
+        g = g / g_infnorm
+        g_sqnorm = numpy.sqrt(g @ g)
+        if g_sqnorm != 0:
+            g = g / g_sqnorm
 
-    ret0 = subspace_decay(
-        g,
-        H,
-        Status(None, 0, Flag.POLICY_ONLY, delta, g, H),
-        -g,
-        delta,
-        constraints,
-    )
-    ret1, direct = _implimentation(g, H, constraints, delta)
-    if ret1.flag == Flag.RESIDUAL_CONVERGENCE:
-        assert direct is None
-        ret2 = None
-    else:
-        assert direct is not None
-        ret2 = subspace_decay(g, H, ret1, direct, delta, constraints)
-    return status.best_status(ret1, ret2, ret0)
+    rad = numpy.linspace(0, numpy.pi / 2, num=100)
+    w1, w2 = numpy.cos(rad), numpy.sin(rad)
+    x = w1 * g.reshape(-1, 1) + w2 * d.reshape(-1, 1)
+    x = clip_sol(x, orig_g, H.value, constraints, delta)
+
+    return Status(x, ret1.iter, ret1.flag, delta, g, H.value)
