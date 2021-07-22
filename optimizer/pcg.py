@@ -211,16 +211,9 @@ def _pcg_output_check(output: Status) -> None:
     pass
 
 
-def circular_interp(
-    g: ndarray,
-    H: ndarray,
-    constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
-    delta: float,
-    *,
-    direct1: ndarray,
-    direct2: ndarray,
+def circular_interp(direct1: ndarray, direct2: ndarray) -> ndarray:
     num: int = 100
-) -> ndarray:
+
     direct1 = safe_normalize(direct1)
     direct2 = safe_normalize(direct2)
 
@@ -254,17 +247,9 @@ def pcg(
 ) -> Status:
     status, direct = _implimentation(g, H, constraints, delta)
     d = status.x
-    if status.flag == Flag.RESIDUAL_CONVERGENCE:
-        assert direct is None
-    else:
-        assert direct is not None
+    if direct is not None:
+        assert status.flag == Flag.RESIDUAL_CONVERGENCE
         d = d + clip_direction(direct, g, H, constraints, delta, basement=d)
-
-    xx = clip_solution(
-        circular_interp(g, H, constraints, delta, direct1=-g, direct2=d),
-        g,
-        H,
-        constraints,
-        delta,
-    )
+    x = circular_interp(direct1=-g, direct2=d)
+    xx = clip_solution(x, g, H, constraints, delta)
     return Status(xx, status.iter, status.flag, delta, g, H)
