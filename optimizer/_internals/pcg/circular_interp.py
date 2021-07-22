@@ -22,7 +22,7 @@ def _input_check(t: Tuple[ndarray, ndarray]) -> None:
 
 
 def _output_check(x: ndarray) -> None:
-    assert len(x.shape) == 1
+    assert len(x.shape) == 2
     assertNoInfNaN(x)
 
 
