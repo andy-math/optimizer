@@ -68,20 +68,12 @@ def active_set(
     _eps = float(numpy.finfo(numpy.float64).eps)
     fixA: ndarray = numpy.concatenate(fixing, axis=0)  # type: ignore
     e, v = numpy.linalg.eig(fixA.T @ fixA)  # type: ignore
-    if e.dtype.type != numpy.float64:
-        e = e.real
-    # 比较0特征值是否过半，决定逼近策略
+    e = e.real
+
     zero_eigenvalues = numpy.abs(e) <= math.sqrt(_eps)
     zeros = numpy.sum(zero_eigenvalues)
     if not zeros:  # 未找到有效的基，只能返回全0
         return numpy.zeros(g.shape)
-    primal = zeros <= zero_eigenvalues.shape[0] // 2
-    if primal:  # 零特征值较少，正向approach
-        v = v[:, zero_eigenvalues]
-    else:
-        v = v[:, ~zero_eigenvalues]
+    v = v[:, zero_eigenvalues]
     approach: ndarray = v @ (g @ v)  # lemma 1
-    if primal:
-        return approach  # 直接返回主0基
-    else:
-        return g - approach  # 去掉对偶的非0基，得到0基
+    return approach  # 直接返回主0基
