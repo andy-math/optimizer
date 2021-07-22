@@ -74,11 +74,13 @@ def clip_solution(
         # -x <= -lb; x <= ub; Ax <= b
         (-constraints[2], constraints[3], constraints[1])
     )
-    bound: ndarray = rhs.reshape(-1, 1) / lhs
-    bound[lhs <= 0] = numpy.inf
+    bound: ndarray = numpy.abs(rhs.reshape(-1, 1) / lhs)
+    bound[a * lhs <= 0] = numpy.inf
 
-    a = numpy.minimum(a, (1.0 - 1.0e-4) * bound.min(axis=0))
+    a = numpy.sign(a) * numpy.minimum(numpy.abs(a), (1.0 - 1.0e-4) * bound.min(axis=0))
 
     qpval = a * gx + 0.5 * ((a * a) * xHx)
     index = int(numpy.argmin(qpval))
-    return a[index] * x[:, index]  # type: ignore
+    x = a[index] * x[:, index]
+    # assert check(x, constraints)
+    return x
