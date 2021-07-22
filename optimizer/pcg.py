@@ -8,7 +8,6 @@ from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
 from overloads.typing import ndarray
 
-from optimizer._internals.common.hessian import Hessian
 from optimizer._internals.common.linneq import constraint_check
 from optimizer._internals.common.norm import safe_normalize
 from optimizer._internals.pcg import flag, status
@@ -179,10 +178,11 @@ def clip_sol(
 
 
 def _pcg_input_check(
-    input: Tuple[ndarray, Hessian, Tuple[ndarray, ndarray, ndarray, ndarray], float]
+    input: Tuple[ndarray, ndarray, Tuple[ndarray, ndarray, ndarray, ndarray], float]
 ) -> None:
-    g, _, constraints, delta = input
+    g, H, constraints, delta = input
     assertNoInfNaN(g)
+    assertNoInfNaN(H)
     constraint_check(constraints)
     assertNoInfNaN_float(delta)
 
@@ -203,7 +203,7 @@ nConstraints = dyn_typing.SizeVar()
 @dyn_typing.dyn_check_4(
     input=(
         dyn_typing.NDArray(numpy.float64, (N,)),
-        dyn_typing.Class(Hessian),
+        dyn_typing.NDArray(numpy.float64, (N, N)),
         dyn_typing.Tuple(
             (
                 dyn_typing.NDArray(numpy.float64, (nConstraints, N)),
@@ -219,11 +219,11 @@ nConstraints = dyn_typing.SizeVar()
 @bind_checker.bind_checker_4(input=_pcg_input_check, output=_pcg_output_check)
 def pcg(
     g: ndarray,
-    H: Hessian,
+    H: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
 ) -> Status:
-    ret1, direct = _implimentation(g, H.value, constraints, delta)
+    ret1, direct = _implimentation(g, H, constraints, delta)
     d = numpy.zeros(g.shape) if ret1.x is None else ret1.x
     if direct is not None:
         size = numpy.sqrt(delta * delta - d @ d)
@@ -249,5 +249,5 @@ def pcg(
             d = (d - g * w1[-1]) / w2[-1]  # 正交化
             x = w1 * g.reshape(-1, 1) + w2 * d.reshape(-1, 1)
 
-    xx = clip_sol(x, orig_g, H.value, constraints, delta)
-    return Status(xx, ret1.iter, ret1.flag, delta, orig_g, H.value)
+    xx = clip_sol(x, orig_g, H, constraints, delta)
+    return Status(xx, ret1.iter, ret1.flag, delta, orig_g, H)

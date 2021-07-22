@@ -108,7 +108,9 @@ class _trust_region_impl:
     ) -> Tuple[Optional[Solution], Solution, pcg.Status, bool]:
 
         # PCG
-        pcg_status = pcg.pcg(sol.grad.value, hessian, sol.shifted_constr, self.delta)
+        pcg_status = pcg.pcg(
+            sol.grad.value, hessian.value, sol.shifted_constr, self.delta
+        )
         self.iter += 1
         hessian.times += 1
 
