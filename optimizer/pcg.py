@@ -17,19 +17,47 @@ Status = status.Status
 _eps = float(numpy.finfo(numpy.float64).eps)
 
 
-def _impl_input_check(
-    input: Tuple[
-        ndarray,
-        ndarray,
-        Tuple[ndarray, ndarray, ndarray, ndarray],
-        float,
-    ]
+N = dyn_typing.SizeVar()
+nConstraints = dyn_typing.SizeVar()
+
+"""
+动态类型签名
+"""
+dyn_signature = dyn_typing.dyn_check_4(
+    input=(
+        dyn_typing.NDArray(numpy.float64, (N,)),
+        dyn_typing.NDArray(numpy.float64, (N, N)),
+        dyn_typing.Tuple(
+            (
+                dyn_typing.NDArray(numpy.float64, (nConstraints, N)),
+                dyn_typing.NDArray(numpy.float64, (nConstraints,)),
+                dyn_typing.NDArray(numpy.float64, (N,)),
+                dyn_typing.NDArray(numpy.float64, (N,)),
+            )
+        ),
+        dyn_typing.Float(),
+    ),
+    output=dyn_typing.Class(Status),
+)
+
+
+def _pcg_input_check(
+    input: Tuple[ndarray, ndarray, Tuple[ndarray, ndarray, ndarray, ndarray], float]
 ) -> None:
     g, H, constraints, delta = input
     assertNoInfNaN(g)
     assertNoInfNaN(H)
     constraint_check(constraints)
     assertNoInfNaN_float(delta)
+
+
+def _pcg_output_check(output: Status) -> None:
+    if output.x is not None:
+        assert output.fval is not None
+        assertNoInfNaN(output.x)
+        assertNoInfNaN_float(output.fval)
+    else:
+        assert output.fval is None
 
 
 def _impl_output_check(output: Tuple[Status, Optional[ndarray]]) -> None:
@@ -41,7 +69,7 @@ def _impl_output_check(output: Tuple[Status, Optional[ndarray]]) -> None:
         assertNoInfNaN(direct)
 
 
-@bind_checker.bind_checker_4(input=_impl_input_check, output=_impl_output_check)
+@bind_checker.bind_checker_4(input=_pcg_input_check, output=_impl_output_check)
 def _implimentation(
     g: ndarray,
     H: ndarray,
@@ -146,7 +174,7 @@ def clip_sol(
     xHx = numpy.sum(x * (H @ x), axis=0)
     a = -gx / xHx
     a[xHx <= 0] = numpy.sign(-gx[xHx <= 0]) * numpy.inf
-    a[gx == 0] = 0
+    a[gx == 0] = 0  # gx必须出现在xHx之后而不是之前，用于解决(gx is 0) * inf -> NaN的问题
     # delta
     a = numpy.sign(a) * numpy.minimum(numpy.abs(a), delta)
     # a * Ax <= b
@@ -177,45 +205,7 @@ def clip_sol(
     return a[index] * x[:, index]  # type: ignore
 
 
-def _pcg_input_check(
-    input: Tuple[ndarray, ndarray, Tuple[ndarray, ndarray, ndarray, ndarray], float]
-) -> None:
-    g, H, constraints, delta = input
-    assertNoInfNaN(g)
-    assertNoInfNaN(H)
-    constraint_check(constraints)
-    assertNoInfNaN_float(delta)
-
-
-def _pcg_output_check(output: Status) -> None:
-    if output.x is not None:
-        assert output.fval is not None
-        assertNoInfNaN(output.x)
-        assertNoInfNaN_float(output.fval)
-    else:
-        assert output.fval is None
-
-
-N = dyn_typing.SizeVar()
-nConstraints = dyn_typing.SizeVar()
-
-
-@dyn_typing.dyn_check_4(
-    input=(
-        dyn_typing.NDArray(numpy.float64, (N,)),
-        dyn_typing.NDArray(numpy.float64, (N, N)),
-        dyn_typing.Tuple(
-            (
-                dyn_typing.NDArray(numpy.float64, (nConstraints, N)),
-                dyn_typing.NDArray(numpy.float64, (nConstraints,)),
-                dyn_typing.NDArray(numpy.float64, (N,)),
-                dyn_typing.NDArray(numpy.float64, (N,)),
-            )
-        ),
-        dyn_typing.Float(),
-    ),
-    output=dyn_typing.Class(Status),
-)
+@dyn_signature
 @bind_checker.bind_checker_4(input=_pcg_input_check, output=_pcg_output_check)
 def pcg(
     g: ndarray,
