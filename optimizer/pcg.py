@@ -180,6 +180,6 @@ def pcg(
     x_clip = clip_solution(x, g, H, constraints, delta)
     x_g = clip_direction(-g, g, H, constraints, delta)
     x_d = clip_direction(d, g, H, constraints, delta)
-    assert qpval(g=g, H=H, x=x_clip) <= qpval(g=g, H=H, x=x_g) + numpy.sqrt(_eps)
-    assert qpval(g=g, H=H, x=x_clip) <= qpval(g=g, H=H, x=x_d) + numpy.sqrt(_eps)
+    assert qpval(g=g, H=H, x=x_clip) <= qpval(g=g, H=H, x=x_g) + 1e-6
+    assert qpval(g=g, H=H, x=x_clip) <= qpval(g=g, H=H, x=x_d) + 1e-6
     return Status(x_clip, status.iter, status.flag, delta, g, H)
