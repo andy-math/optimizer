@@ -9,7 +9,7 @@ from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
 from overloads.typing import ndarray
 
 from optimizer._internals.common.linneq import constraint_check
-from optimizer._internals.common.norm import safe_normalize
+from optimizer._internals.common.norm import norm_l2, safe_normalize
 from optimizer._internals.pcg import flag, status
 from optimizer._internals.pcg.circular_interp import circular_interp
 from optimizer._internals.pcg.clip_solution import clip_solution
@@ -83,6 +83,7 @@ def _implimentation(
     H_max = numpy.abs(H).max(axis=1, keepdims=True)
     assert H_max.shape[1] == 1
     R = H_max[:, 0] * numpy.sqrt(numpy.sum((H / H_max) * (H / H_max), axis=1))
+    R = numpy.minimum(R, norm_l2(g))
     R = numpy.maximum(R, numpy.sqrt(_eps))
 
     (n,) = g.shape
