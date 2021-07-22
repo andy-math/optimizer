@@ -202,7 +202,7 @@ def clip_direction(
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
     *,
-    basement: Optional[ndarray] = None
+    basement: Optional[ndarray]
 ) -> ndarray:
     A, b, lb, ub = constraints
     if basement is not None:
