@@ -38,6 +38,8 @@ class Test_pcg:
             assert status.flag == pcg.Flag.RESIDUAL_CONVERGENCE
             assert status.iter < dim
             assert dir is None
+            g = H @ status.x + g
+            assert numpy.abs(g).max() < math.sqrt(EPS)
 
 
 if __name__ == "__main__":
