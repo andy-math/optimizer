@@ -195,6 +195,30 @@ def clip_solution(
     return a[index] * x[:, index]  # type: ignore
 
 
+def clip_direction(
+    x: ndarray,
+    g: ndarray,
+    H: ndarray,
+    constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
+    delta: float,
+    *,
+    basement: Optional[ndarray] = None
+) -> ndarray:
+    A, b, lb, ub = constraints
+    if basement is not None:
+        delta = numpy.sqrt(delta * delta - basement @ basement)
+        assert numpy.isfinite(delta)
+        g = g + H @ basement
+        b = b - A @ basement
+        lb = lb - basement
+        ub = ub - basement
+    x = safe_normalize(x).reshape((-1, 1))
+    x = clip_solution(x, g, H, (A, b, lb, ub), delta)
+    assert len(x.shape) == 2 and x.shape[1] == 1
+    x.shape = (x.shape[0],)
+    return x
+
+
 @dyn_signature
 @bind_checker.bind_checker_4(input=_pcg_input_check, output=_pcg_output_check)
 def pcg(
@@ -209,14 +233,13 @@ def pcg(
         assert direct is None
     else:
         assert direct is not None
-        size = numpy.sqrt(delta * delta - d @ d)
-        d = d + size * safe_normalize(direct)
+        d = d + clip_direction(direct, g, H, constraints, delta, basement=d)
 
     orig_g = g
 
-    d = safe_normalize(d)
+    d = clip_direction(d, g, H, constraints, delta)
 
-    g = safe_normalize(g)
+    g = clip_direction(g, g, H, constraints, delta)
 
     g = -g  # 改成下降方向
 
