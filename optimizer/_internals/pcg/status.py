@@ -38,25 +38,3 @@ class Status:
             assert self.size / delta < 1.0 + 1e-6
             if flag != Flag.RESIDUAL_CONVERGENCE:
                 assert self.size != 0
-
-
-def _compare(s1: Status, s2: Status) -> Status:
-    if s1.x is None and s2.x is None:
-        return s1
-    elif s1.x is None:
-        return s2
-    elif s2.x is None:
-        return s1
-    else:
-        assert s1.fval is not None and s1.size is not None
-        assert s2.fval is not None and s2.size is not None
-        if s1.fval < s2.fval or (s1.fval == s2.fval and s1.size <= s2.size):
-            return s1
-        else:
-            return s2
-
-
-def best_status(best: Status, *status: Optional[Status]) -> Status:
-    for s in status:
-        best = best if s is None else _compare(best, s)
-    return best
