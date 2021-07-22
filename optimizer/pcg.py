@@ -205,7 +205,10 @@ def pcg(
 ) -> Status:
     ret1, direct = _implimentation(g, H, constraints, delta)
     d = ret1.x
-    if direct is not None:
+    if ret1.flag == Flag.RESIDUAL_CONVERGENCE:
+        assert direct is None
+    else:
+        assert direct is not None
         size = numpy.sqrt(delta * delta - d @ d)
         d = d + size * safe_normalize(direct)
 
