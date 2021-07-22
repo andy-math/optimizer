@@ -172,7 +172,7 @@ def clip_sol(
 
     a = numpy.minimum(a, bound)
 
-    qpval = a * gx + 0.5 * (a * xHx)
+    qpval = a * gx + 0.5 * ((a * a) * xHx)
     index = int(numpy.argmin(qpval))
     return a[index] * x[:, index]  # type: ignore
 
@@ -228,23 +228,13 @@ def pcg(
         sqsize = delta * delta - d @ d
         if sqsize > 0:
             size = numpy.sqrt(sqsize)
-            d = d + size * direct
+            d = d + size * safe_normalize(direct)
 
     orig_g = g
 
-    d_infnorm = numpy.abs(d).max()
-    if d_infnorm != 0:
-        d = d / d_infnorm
-        d_sqnorm = numpy.sqrt(d @ d)
-        if d_sqnorm != 0:
-            d = d / d_sqnorm
+    d = safe_normalize(d)
 
-    g_infnorm = numpy.abs(g).max()
-    if g_infnorm != 0:
-        g = g / g_infnorm
-        g_sqnorm = numpy.sqrt(g @ g)
-        if g_sqnorm != 0:
-            g = g / g_sqnorm
+    g = safe_normalize(g)
 
     g = -g  # 改成下降方向
 
@@ -262,3 +252,13 @@ def pcg(
 
     xx = clip_sol(x, orig_g, H.value, constraints, delta)
     return Status(xx, ret1.iter, ret1.flag, delta, orig_g, H.value)
+
+
+def safe_normalize(x: ndarray) -> ndarray:
+    infnorm = numpy.abs(x).max()
+    if infnorm != 0:
+        x = x / infnorm
+        sqnorm = numpy.sqrt(x @ x)
+        if sqnorm != 0:
+            x = x / sqnorm
+    return x
