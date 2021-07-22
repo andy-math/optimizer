@@ -229,19 +229,19 @@ def circular_interp(
 
     # 两个都没有时，返回任意一个都是正确的零向量
     if not d2_l2norm:
-        return direct1
+        return direct1.reshape(-1, 1)
     if not d1_l2norm:
-        return direct2
+        return direct2.reshape(-1, 1)
 
     cos: float = float(direct1 @ direct2) / (d1_l2norm * d2_l2norm)
     if numpy.abs(cos - 1) < numpy.sqrt(_eps):
-        return direct1  # 相似度太高，返回任意一个都正确
+        return direct1.reshape(-1, 1)  # 相似度太高，返回任意一个都正确
     else:
         rad = numpy.linspace(0, numpy.arccos(cos), num=num)
         w1, w2 = numpy.cos(rad), numpy.sin(rad)
         direct2 = (direct2 - direct1 * w1[-1]) / w2[-1]  # 正交化
-        x = w1 * direct1.reshape(-1, 1) + w2 * direct2.reshape(-1, 1)
-        return clip_solution(x, g, H, constraints, delta)
+        x: ndarray = w1 * direct1.reshape(-1, 1) + w2 * direct2.reshape(-1, 1)
+        return x
 
 
 @dyn_signature
@@ -259,25 +259,12 @@ def pcg(
     else:
         assert direct is not None
         d = d + clip_direction(direct, g, H, constraints, delta, basement=d)
-    orig_g = g
 
-    d = safe_normalize(d)
-
-    g = safe_normalize(g)
-
-    g = -g  # 改成下降方向
-
-    if not d @ d:
-        x = g.reshape(-1, 1)
-    else:
-        cos_gd: float = (g @ d) / numpy.sqrt((g @ g) * (d @ d))  # type: ignore
-        if numpy.abs(cos_gd - 1) < numpy.sqrt(_eps):
-            x = g.reshape(-1, 1)
-        else:
-            rad = numpy.linspace(0, numpy.arccos(cos_gd), num=100)
-            w1, w2 = numpy.cos(rad), numpy.sin(rad)
-            d = (d - g * w1[-1]) / w2[-1]  # 正交化
-            x = w1 * g.reshape(-1, 1) + w2 * d.reshape(-1, 1)
-
-    xx = clip_solution(x, orig_g, H, constraints, delta)
-    return Status(xx, status.iter, status.flag, delta, orig_g, H)
+    xx = clip_solution(
+        circular_interp(g, H, constraints, delta, direct1=-g, direct2=d),
+        g,
+        H,
+        constraints,
+        delta,
+    )
+    return Status(xx, status.iter, status.flag, delta, g, H)
