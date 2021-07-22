@@ -79,10 +79,7 @@ def _implimentation(
     def exit_(
         x: ndarray, d: Optional[ndarray], iter: int, flag: Flag
     ) -> Tuple[Status, Optional[ndarray]]:
-        if iter != 0 or flag == Flag.RESIDUAL_CONVERGENCE:
-            return Status(x, iter, flag, delta, g, H), d
-        else:
-            return Status(None, iter, flag, delta, g, H), d
+        return Status(x, iter, flag, delta, g, H), d
 
     assert numpy.all(H.T == H)
 
@@ -214,7 +211,7 @@ def pcg(
     delta: float,
 ) -> Status:
     ret1, direct = _implimentation(g, H, constraints, delta)
-    d = numpy.zeros(g.shape) if ret1.x is None else ret1.x
+    d = ret1.x
     if direct is not None:
         size = numpy.sqrt(delta * delta - d @ d)
         d = d + size * safe_normalize(direct)

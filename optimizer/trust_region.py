@@ -114,16 +114,6 @@ class _trust_region_impl:
         self.iter += 1
         hessian.times += 1
 
-        # PCG失败recover
-        if pcg_status.x is None:
-            if not sol.hess_up_to_date:
-                return None, sol, pcg_status, True
-            else:
-                self.delta /= 4.0
-                return None, sol, pcg_status, False
-        assert pcg_status.fval is not None
-        assert pcg_status.size is not None
-
         # 更新步长、试探点、试探函数值
         new_sol = Solution(
             self.iter,
