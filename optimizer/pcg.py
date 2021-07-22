@@ -11,7 +11,6 @@ from overloads.typing import ndarray
 from optimizer._internals.common.hessian import Hessian
 from optimizer._internals.common.linneq import constraint_check
 from optimizer._internals.pcg import flag, status
-from optimizer._internals.pcg.policies import subspace_decay
 
 Flag = flag.Flag
 Status = status.Status
@@ -88,7 +87,7 @@ def _implimentation(
         # 试探坐标点
         alpha: float = inner1 / denom
         x_new: ndarray = x + alpha * d
-
+        """
         # 目标点超出信赖域
         if x_new @ x_new > delta * delta:
             return exit_(x, d, iter, Flag.OUT_OF_TRUST_REGION)
@@ -100,6 +99,7 @@ def _implimentation(
             or numpy.any(constraints[0] @ x_new > constraints[1])
         ):
             return exit_(x, d, iter, Flag.VIOLATE_CONSTRAINTS)
+        """
 
         # 更新坐标点
         x = x_new
@@ -140,7 +140,7 @@ def clip_sol(
     _eps = float(numpy.finfo(numpy.float64).eps)
     # 单位向量断言
     norm_x = numpy.sqrt(numpy.sum(x * x, axis=1))
-    assert numpy.abs(norm_x - 1).max() < numpy.sqrt(_eps)
+    assert (norm_x - 1).max() < numpy.sqrt(_eps)
     # 最优二次型缩放
     gx: ndarray = g @ x
     xHx = numpy.sum(x * (H @ x), axis=0)
@@ -243,9 +243,13 @@ def pcg(
         if g_sqnorm != 0:
             g = g / g_sqnorm
 
-    rad = numpy.linspace(0, numpy.pi / 2, num=100)
+    cos_gd: float = (g @ d) / numpy.sqrt((g @ g) * (d @ d))  # type: ignore
+    rad = numpy.arccos(cos_gd)
+
+    w1 = numpy.linspace(0, rad, num=100)
     w1, w2 = numpy.cos(rad), numpy.sin(rad)
-    x = w1 * g.reshape(-1, 1) + w2 * d.reshape(-1, 1)
+    d = (d - g * w1[-1]) / w2[-1]  # 正交化
+    x = w1 * g.reshape(-1, 1) + w2 * ((d - g * w1[-1]) / w2[-1]).reshape(-1, 1)
     x = clip_sol(x, orig_g, H.value, constraints, delta)
 
     return Status(x, ret1.iter, ret1.flag, delta, g, H.value)
