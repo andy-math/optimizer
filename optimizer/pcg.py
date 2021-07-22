@@ -14,6 +14,7 @@ from optimizer._internals.pcg import flag, status
 
 Flag = flag.Flag
 Status = status.Status
+_eps = float(numpy.finfo(numpy.float64).eps)
 
 
 def _impl_input_check(
@@ -54,8 +55,6 @@ def _implimentation(
             return Status(x, iter, flag, delta, g, H), d
         else:
             return Status(None, iter, flag, delta, g, H), d
-
-    _eps = float(numpy.finfo(numpy.float64).eps)
 
     # 取 max{ l2norm(col(H)), sqrt(eps) }
     # 预条件子 M = C.T @ C == diag(R)
@@ -136,7 +135,6 @@ def clip_sol(
         出现NaN, Inf说明Ax不影响界，a无界
         需要使用(1-1e-4)避免刚性撞击边界
     """
-    _eps = float(numpy.finfo(numpy.float64).eps)
     # 单位向量断言
     norm_x = numpy.sqrt(numpy.sum(x * x, axis=0))
     assert norm_x.max() - 1 < numpy.sqrt(_eps)
@@ -247,11 +245,13 @@ def pcg(
     g = -g  # 改成下降方向
 
     cos_gd: float = (g @ d) / numpy.sqrt((g @ g) * (d @ d))  # type: ignore
-    rad = numpy.linspace(0, numpy.arccos(cos_gd), num=100)
+    if numpy.abs(cos_gd - 1) < numpy.sqrt(_eps):
+        x = g.reshape(-1, 1)
+    else:
+        rad = numpy.linspace(0, numpy.arccos(cos_gd), num=100)
+        w1, w2 = numpy.cos(rad), numpy.sin(rad)
+        d = (d - g * w1[-1]) / w2[-1]  # 正交化
+        x = w1 * g.reshape(-1, 1) + w2 * d.reshape(-1, 1)
 
-    w1, w2 = numpy.cos(rad), numpy.sin(rad)
-    d = (d - g * w1[-1]) / w2[-1]  # 正交化
-    x = w1 * g.reshape(-1, 1) + w2 * d.reshape(-1, 1)
     x = clip_sol(x, orig_g, H.value, constraints, delta)
-
     return Status(x, ret1.iter, ret1.flag, delta, orig_g, H.value)
