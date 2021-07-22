@@ -143,7 +143,7 @@ def _implimentation(
     return exit_(x, None, iter, Flag.RESIDUAL_CONVERGENCE)
 
 
-def clip_sol(
+def clip_solution(
     x: ndarray,
     g: ndarray,
     H: ndarray,
@@ -175,27 +175,20 @@ def clip_sol(
     # delta
     a = numpy.sign(a) * numpy.minimum(numpy.abs(a), delta)
     # a * Ax <= b
-    lhs = numpy.concatenate(  # type: ignore
-        (
-            -x,  # -x <= -lb
-            x,  # x <= ub
-            constraints[0] @ x,  # Ax <= b
-        ),
+    lhs: ndarray = numpy.concatenate(  # type: ignore
+        # -x <= -lb; x <= ub; Ax <= b
+        (-x, x, constraints[0] @ x),
         axis=0,
     )
     rhs: ndarray = numpy.concatenate(  # type: ignore
-        (
-            -constraints[2],  # -x <= -lb
-            constraints[3],  # x <= ub
-            constraints[1],  # Ax <= b
-        )
+        # -x <= -lb; x <= ub; Ax <= b
+        (-constraints[2], constraints[3], constraints[1])
     )
-    bound = rhs.reshape(-1, 1) / lhs
+    bound: ndarray = rhs.reshape(-1, 1) / lhs
     bound[lhs == 0] = numpy.inf
     bound[bound < 0] = numpy.inf
-    bound = (1.0 - 1.0e-4) * bound.min(axis=0)
 
-    a = numpy.minimum(a, bound)
+    a = numpy.minimum(a, (1.0 - 1.0e-4) * bound.min(axis=0))
 
     qpval = a * gx + 0.5 * ((a * a) * xHx)
     index = int(numpy.argmin(qpval))
@@ -236,5 +229,5 @@ def pcg(
             d = (d - g * w1[-1]) / w2[-1]  # 正交化
             x = w1 * g.reshape(-1, 1) + w2 * d.reshape(-1, 1)
 
-    xx = clip_sol(x, orig_g, H, constraints, delta)
+    xx = clip_solution(x, orig_g, H, constraints, delta)
     return Status(xx, ret1.iter, ret1.flag, delta, orig_g, H)
