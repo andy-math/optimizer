@@ -213,10 +213,7 @@ def clip_direction(
         lb = lb - basement
         ub = ub - basement
     x = safe_normalize(x).reshape((-1, 1))
-    x = clip_solution(x, g, H, (A, b, lb, ub), delta)
-    assert len(x.shape) == 2 and x.shape[1] == 1
-    x.shape = (x.shape[0],)
-    return x
+    return clip_solution(x, g, H, (A, b, lb, ub), delta)
 
 
 @dyn_signature
