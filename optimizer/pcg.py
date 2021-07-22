@@ -56,12 +56,15 @@ def _implimentation(
         else:
             return Status(None, iter, flag, delta, g, H), d
 
+    assert numpy.all(H.T == H)
+
     # 取 max{ l2norm(col(H)), sqrt(eps) }
     # 预条件子 M = C.T @ C == diag(R)
     # 其中 H === H.T  =>  norm(col(H)) === norm(row(H))
-    R: ndarray = numpy.sqrt(numpy.sum(H * H, axis=1))
-    if numpy.any(numpy.isinf(R)):  # 若l2计算过程中不可避免产生inf，那么使用inf范数代替之
-        R = numpy.abs(H).max(axis=1)
+    R: ndarray
+    H_max = numpy.abs(H).max(axis=1, keepdims=True)
+    assert H_max.shape[1] == 1
+    R = H_max[:, 0] * numpy.sqrt(numpy.sum((H / H_max) * (H / H_max), axis=1))
     R = numpy.maximum(R, numpy.sqrt(_eps))
 
     (n,) = g.shape
