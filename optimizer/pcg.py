@@ -51,15 +51,6 @@ def _pcg_input_check(
     assertNoInfNaN_float(delta)
 
 
-def _pcg_output_check(output: Status) -> None:
-    if output.x is not None:
-        assert output.fval is not None
-        assertNoInfNaN(output.x)
-        assertNoInfNaN_float(output.fval)
-    else:
-        assert output.fval is None
-
-
 def _impl_output_check(output: Tuple[Status, Optional[ndarray]]) -> None:
     status, direct = output
     if status.flag == Flag.RESIDUAL_CONVERGENCE:
@@ -214,6 +205,10 @@ def clip_direction(
         ub = ub - basement
     x = safe_normalize(x).reshape((-1, 1))
     return clip_solution(x, g, H, (A, b, lb, ub), delta)
+
+
+def _pcg_output_check(output: Status) -> None:
+    pass
 
 
 @dyn_signature
