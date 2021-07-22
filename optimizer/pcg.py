@@ -22,15 +22,13 @@ def _impl_input_check(
     input: Tuple[
         ndarray,
         ndarray,
-        ndarray,
         Tuple[ndarray, ndarray, ndarray, ndarray],
         float,
     ]
 ) -> None:
-    g, H, R, constraints, delta = input
+    g, H, constraints, delta = input
     assertNoInfNaN(g)
     assertNoInfNaN(H)
-    assertNoInfNaN(R)
     constraint_check(constraints)
     assertNoInfNaN_float(delta)
 
@@ -44,11 +42,10 @@ def _impl_output_check(output: Tuple[Status, Optional[ndarray]]) -> None:
         assertNoInfNaN(direct)
 
 
-@bind_checker.bind_checker_5(input=_impl_input_check, output=_impl_output_check)
+@bind_checker.bind_checker_4(input=_impl_input_check, output=_impl_output_check)
 def _implimentation(
     g: ndarray,
     H: ndarray,
-    R: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
 ) -> Tuple[Status, Optional[ndarray]]:
@@ -61,6 +58,14 @@ def _implimentation(
             return Status(None, iter, flag, delta, g, H), d
 
     _eps = float(numpy.finfo(numpy.float64).eps)
+
+    # 取 max{ l2norm(col(H)), sqrt(eps) }
+    # 预条件子 M = C.T @ C == diag(R)
+    # 其中 H === H.T  =>  norm(col(H)) === norm(row(H))
+    R: ndarray = numpy.sqrt(numpy.sum(H * H, axis=1))
+    if numpy.any(numpy.isinf(R)):  # 若l2计算过程中不可避免产生inf，那么使用inf范数代替之
+        R = numpy.abs(H).max(axis=1)
+    R = numpy.maximum(R, numpy.sqrt(_eps))
 
     (n,) = g.shape
     x: ndarray = numpy.zeros((n,))  # 目标点
@@ -191,7 +196,7 @@ def _best_policy(
         delta,
         constraints,
     )
-    ret1, direct = _implimentation(g, H, R, constraints, delta)
+    ret1, direct = _implimentation(g, H, constraints, delta)
     if ret1.flag == Flag.RESIDUAL_CONVERGENCE:
         assert direct is None
         ret2 = None
