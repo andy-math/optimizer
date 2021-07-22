@@ -259,6 +259,25 @@ def pcg(
     else:
         assert direct is not None
         d = d + clip_direction(direct, g, H, constraints, delta, basement=d)
+    orig_g = g
 
-    x = circular_interp(g, H, constraints, delta, direct1=-g, direct2=d)
-    return Status(x, status.iter, status.flag, delta, g, H)
+    d = safe_normalize(d)
+
+    g = safe_normalize(g)
+
+    g = -g  # 改成下降方向
+
+    if not d @ d:
+        x = g.reshape(-1, 1)
+    else:
+        cos_gd: float = (g @ d) / numpy.sqrt((g @ g) * (d @ d))  # type: ignore
+        if numpy.abs(cos_gd - 1) < numpy.sqrt(_eps):
+            x = g.reshape(-1, 1)
+        else:
+            rad = numpy.linspace(0, numpy.arccos(cos_gd), num=100)
+            w1, w2 = numpy.cos(rad), numpy.sin(rad)
+            d = (d - g * w1[-1]) / w2[-1]  # 正交化
+            x = w1 * g.reshape(-1, 1) + w2 * d.reshape(-1, 1)
+
+    xx = clip_solution(x, orig_g, H, constraints, delta)
+    return Status(xx, status.iter, status.flag, delta, orig_g, H)
