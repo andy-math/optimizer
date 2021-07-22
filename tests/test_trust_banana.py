@@ -34,7 +34,7 @@ class Test_banana:
             opts,
         )
         assert result.success
-        assert numpy.all(result.x.round(7) == 1)
+        assert numpy.all(result.x.round(6) == 1)
         assert 20 < result.iter < 30
 
 
