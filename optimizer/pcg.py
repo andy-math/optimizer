@@ -12,7 +12,6 @@ from optimizer._internals.common.hessian import Hessian
 from optimizer._internals.common.linneq import constraint_check
 from optimizer._internals.pcg import flag, status
 from optimizer._internals.pcg.policies import subspace_decay
-from optimizer._internals.pcg.precondition import gradient_precon, hessian_precon
 
 Flag = flag.Flag
 Status = status.Status
@@ -165,8 +164,8 @@ def pcg(
 ) -> Status:
 
     return status.best_status(
-        _best_policy(g, H.value, hessian_precon(H.value), constraints, delta),
-        _best_policy(g, H.value, gradient_precon(g), constraints, delta),
+        _best_policy(g, H.value, constraints, delta),
+        _best_policy(g, H.value, constraints, delta),
         subspace_decay(
             g,
             H.value,
@@ -183,7 +182,6 @@ def pcg(
 def _best_policy(
     g: ndarray,
     H: ndarray,
-    R: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
 ) -> Status:
@@ -192,7 +190,7 @@ def _best_policy(
         g,
         H,
         Status(None, 0, Flag.POLICY_ONLY, delta, g, H),
-        (-g) / R,
+        -g,
         delta,
         constraints,
     )
