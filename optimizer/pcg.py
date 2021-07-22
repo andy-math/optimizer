@@ -248,7 +248,7 @@ def pcg(
     status, direct = _implimentation(g, H, constraints, delta)
     d = status.x
     if direct is not None:
-        assert status.flag == Flag.RESIDUAL_CONVERGENCE
+        assert status.flag != Flag.RESIDUAL_CONVERGENCE
         d = d + clip_direction(direct, g, H, constraints, delta, basement=d)
     x = circular_interp(direct1=-g, direct2=d)
     xx = clip_solution(x, g, H, constraints, delta)
