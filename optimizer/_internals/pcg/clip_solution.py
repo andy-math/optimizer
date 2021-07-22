@@ -75,8 +75,7 @@ def clip_solution(
         (-constraints[2], constraints[3], constraints[1])
     )
     bound: ndarray = rhs.reshape(-1, 1) / lhs
-    bound[lhs == 0] = numpy.inf
-    bound[bound < 0] = numpy.inf
+    bound[lhs <= 0] = numpy.inf
 
     a = numpy.minimum(a, (1.0 - 1.0e-4) * bound.min(axis=0))
 
