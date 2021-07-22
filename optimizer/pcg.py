@@ -87,7 +87,7 @@ def _implimentation(
         # 试探坐标点
         alpha: float = inner1 / denom
         x_new: ndarray = x + alpha * d
-        """
+
         # 目标点超出信赖域
         if x_new @ x_new > delta * delta:
             return exit_(x, d, iter, Flag.OUT_OF_TRUST_REGION)
@@ -99,7 +99,6 @@ def _implimentation(
             or numpy.any(constraints[0] @ x_new > constraints[1])
         ):
             return exit_(x, d, iter, Flag.VIOLATE_CONSTRAINTS)
-        """
 
         # 更新坐标点
         x = x_new
@@ -139,13 +138,13 @@ def clip_sol(
     """
     _eps = float(numpy.finfo(numpy.float64).eps)
     # 单位向量断言
-    norm_x = numpy.sqrt(numpy.sum(x * x, axis=1))
-    assert (norm_x - 1).max() < numpy.sqrt(_eps)
+    norm_x = numpy.sqrt(numpy.sum(x * x, axis=0))
+    assert norm_x.max() - 1 < numpy.sqrt(_eps)
     # 最优二次型缩放
     gx: ndarray = g @ x
     xHx = numpy.sum(x * (H @ x), axis=0)
     a = -gx / xHx
-    a[xHx <= 0] = numpy.sign(-gx) * numpy.inf
+    a[xHx <= 0] = numpy.sign(-gx[xHx <= 0]) * numpy.inf
     # delta
     a = numpy.sign(a) * numpy.minimum(numpy.abs(a), delta)
     # a * Ax <= b
@@ -224,8 +223,10 @@ def pcg(
     ret1, direct = _implimentation(g, H.value, constraints, delta)
     d = numpy.zeros(g.shape) if ret1.x is None else ret1.x
     if direct is not None:
-        size = numpy.sqrt(delta * delta - d @ d)
-        d = d + size * direct
+        sqsize = delta * delta - d @ d
+        if sqsize > 0:
+            size = numpy.sqrt(sqsize)
+            d = d + size * direct
 
     orig_g = g
 
@@ -243,13 +244,14 @@ def pcg(
         if g_sqnorm != 0:
             g = g / g_sqnorm
 
-    cos_gd: float = (g @ d) / numpy.sqrt((g @ g) * (d @ d))  # type: ignore
-    rad = numpy.arccos(cos_gd)
+    g = -g  # 改成下降方向
 
-    w1 = numpy.linspace(0, rad, num=100)
+    cos_gd: float = (g @ d) / numpy.sqrt((g @ g) * (d @ d))  # type: ignore
+    rad = numpy.linspace(0, numpy.arccos(cos_gd), num=100)
+
     w1, w2 = numpy.cos(rad), numpy.sin(rad)
     d = (d - g * w1[-1]) / w2[-1]  # 正交化
-    x = w1 * g.reshape(-1, 1) + w2 * ((d - g * w1[-1]) / w2[-1]).reshape(-1, 1)
+    x = w1 * g.reshape(-1, 1) + w2 * d.reshape(-1, 1)
     x = clip_sol(x, orig_g, H.value, constraints, delta)
 
-    return Status(x, ret1.iter, ret1.flag, delta, g, H.value)
+    return Status(x, ret1.iter, ret1.flag, delta, orig_g, H.value)
