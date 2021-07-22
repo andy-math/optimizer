@@ -225,10 +225,8 @@ def pcg(
     ret1, direct = _implimentation(g, H.value, constraints, delta)
     d = numpy.zeros(g.shape) if ret1.x is None else ret1.x
     if direct is not None:
-        sqsize = delta * delta - d @ d
-        if sqsize > 0:
-            size = numpy.sqrt(sqsize)
-            d = d + size * safe_normalize(direct)
+        size = numpy.sqrt(delta * delta - d @ d)
+        d = d + size * safe_normalize(direct)
 
     orig_g = g
 
