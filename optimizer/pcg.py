@@ -10,6 +10,7 @@ from overloads.typing import ndarray
 
 from optimizer._internals.common.hessian import Hessian
 from optimizer._internals.common.linneq import constraint_check
+from optimizer._internals.common.norm import safe_normalize
 from optimizer._internals.pcg import flag, status
 
 Flag = flag.Flag
@@ -250,13 +251,3 @@ def pcg(
 
     xx = clip_sol(x, orig_g, H.value, constraints, delta)
     return Status(xx, ret1.iter, ret1.flag, delta, orig_g, H.value)
-
-
-def safe_normalize(x: ndarray) -> ndarray:
-    infnorm = numpy.abs(x).max()
-    if infnorm != 0:
-        x = x / infnorm
-        sqnorm = numpy.sqrt(x @ x)
-        if sqnorm != 0:
-            x = x / sqnorm
-    return x
