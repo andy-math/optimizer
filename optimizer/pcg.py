@@ -9,8 +9,9 @@ from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
 from overloads.typing import ndarray
 
 from optimizer._internals.common.linneq import constraint_check
-from optimizer._internals.common.norm import norm_l2, safe_normalize
+from optimizer._internals.common.norm import safe_normalize
 from optimizer._internals.pcg import flag, status
+from optimizer._internals.pcg.circular_interp import circular_interp
 
 Flag = flag.Flag
 Status = status.Status
@@ -211,32 +212,6 @@ def _pcg_output_check(output: Status) -> None:
     pass
 
 
-def circular_interp(direct1: ndarray, direct2: ndarray) -> ndarray:
-    num: int = 100
-
-    direct1 = safe_normalize(direct1)
-    direct2 = safe_normalize(direct2)
-
-    d1_l2norm = norm_l2(direct1)
-    d2_l2norm = norm_l2(direct2)
-
-    # 两个都没有时，返回任意一个都是正确的零向量
-    if not d2_l2norm:
-        return direct1.reshape(-1, 1)
-    if not d1_l2norm:
-        return direct2.reshape(-1, 1)
-
-    cos: float = float(direct1 @ direct2) / (d1_l2norm * d2_l2norm)
-    if numpy.abs(cos - 1) < numpy.sqrt(_eps):
-        return direct1.reshape(-1, 1)  # 相似度太高，返回任意一个都正确
-    else:
-        rad = numpy.linspace(0, numpy.arccos(cos), num=num)
-        w1, w2 = numpy.cos(rad), numpy.sin(rad)
-        direct2 = (direct2 - direct1 * w1[-1]) / w2[-1]  # 正交化
-        x: ndarray = w1 * direct1.reshape(-1, 1) + w2 * direct2.reshape(-1, 1)
-        return x
-
-
 @dyn_signature
 @bind_checker.bind_checker_4(input=_pcg_input_check, output=_pcg_output_check)
 def pcg(
@@ -250,6 +225,6 @@ def pcg(
     if direct is not None:
         assert status.flag != Flag.RESIDUAL_CONVERGENCE
         d = d + clip_direction(direct, g, H, constraints, delta, basement=d)
-    x = circular_interp(direct1=-g, direct2=d)
+    x = circular_interp(-g, d)
     xx = clip_solution(x, g, H, constraints, delta)
     return Status(xx, status.iter, status.flag, delta, g, H)
