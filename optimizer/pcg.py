@@ -13,6 +13,7 @@ from optimizer._internals.common.norm import norm_l2, safe_normalize
 from optimizer._internals.pcg import flag, status
 from optimizer._internals.pcg.circular_interp import circular_interp
 from optimizer._internals.pcg.clip_solution import clip_solution
+from optimizer._internals.pcg.qpval import qpval
 
 Flag = flag.Flag
 Status = status.Status
@@ -144,7 +145,7 @@ def clip_direction(
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
     *,
-    basement: ndarray
+    basement: Optional[ndarray] = None
 ) -> ndarray:
     A, b, lb, ub = constraints
     if basement is not None:
@@ -176,5 +177,9 @@ def pcg(
         assert status.flag != Flag.RESIDUAL_CONVERGENCE
         d = d + clip_direction(direct, g, H, constraints, delta, basement=d)
     x = circular_interp(-g, d)
-    xx = clip_solution(x, g, H, constraints, delta)
-    return Status(xx, status.iter, status.flag, delta, g, H)
+    x_clip = clip_solution(x, g, H, constraints, delta)
+    x_g = clip_direction(-g, g, H, constraints, delta)
+    x_d = clip_direction(d, g, H, constraints, delta)
+    assert qpval(g=g, H=H, x=x_clip) <= qpval(g=g, H=H, x=x_g)
+    assert qpval(g=g, H=H, x=x_clip) <= qpval(g=g, H=H, x=x_d)
+    return Status(x_clip, status.iter, status.flag, delta, g, H)
