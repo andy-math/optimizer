@@ -9,7 +9,7 @@ from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
 from overloads.typing import ndarray
 
 from optimizer._internals.common.hessian import Hessian
-from optimizer._internals.common.linneq import check, constraint_check
+from optimizer._internals.common.linneq import constraint_check
 from optimizer._internals.pcg import flag, status
 from optimizer._internals.pcg.policies import subspace_decay
 from optimizer._internals.pcg.precondition import gradient_precon, hessian_precon
@@ -86,17 +86,21 @@ def _implimentation(
         x_new: ndarray = x + alpha * d
 
         # 目标点超出信赖域
-        if numpy.linalg.norm(x_new) > delta:  # type: ignore
+        if x_new @ x_new > delta * delta:
             return exit_(x, d, iter, Flag.OUT_OF_TRUST_REGION)
 
         # 违反约束
-        if not check(x_new, constraints):
+        if (
+            numpy.any(x_new < constraints[2])
+            or numpy.any(x_new > constraints[3])
+            or numpy.any(constraints[0] @ x_new > constraints[1])
+        ):
             return exit_(x, d, iter, Flag.VIOLATE_CONSTRAINTS)
 
         # 更新坐标点
         x = x_new
 
-        # 更新残差
+        # 更新残差和右端项
         r = cast(ndarray, r - alpha * ww)
         z = cast(ndarray, r / R)
 
