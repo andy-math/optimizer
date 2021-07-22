@@ -4,12 +4,12 @@ import numpy
 from optimizer import pcg
 from overloads.typing import ndarray
 
-numpy.random.seed(0)
 EPS = float(numpy.finfo(numpy.float64).eps)
 
 
 class Test_pcg:
     def test_convex(self) -> None:
+        numpy.random.seed(0)
         dim = 10
         delta = 99999999
         constraints = (
@@ -40,6 +40,7 @@ class Test_pcg:
             assert numpy.abs(g).max() < math.sqrt(EPS)
 
     def test_nonconvex(self) -> None:
+        numpy.random.seed(0)
         dim = 10
         delta = 99999999
         constraints = (
@@ -58,6 +59,9 @@ class Test_pcg:
             assert numpy.abs(
                 V @ numpy.diag(E) @ V.T - H  # type: ignore
             ).max() < math.sqrt(EPS)
+            H = (V * numpy.random.randn(dim)) @ V.T
+
+            H = (H.T + H) / 2  # type: ignore
 
             g = numpy.random.randn(dim)
             status, dir = pcg._implimentation(g, H, constraints, delta)
