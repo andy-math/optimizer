@@ -143,6 +143,7 @@ def clip_sol(
     xHx = numpy.sum(x * (H @ x), axis=0)
     a = -gx / xHx
     a[xHx <= 0] = numpy.sign(-gx[xHx <= 0]) * numpy.inf
+    a[gx == 0] = 0
     # delta
     a = numpy.sign(a) * numpy.minimum(numpy.abs(a), delta)
     # a * Ax <= b
@@ -244,14 +245,17 @@ def pcg(
 
     g = -g  # 改成下降方向
 
-    cos_gd: float = (g @ d) / numpy.sqrt((g @ g) * (d @ d))  # type: ignore
-    if numpy.abs(cos_gd - 1) < numpy.sqrt(_eps):
+    if not d @ d:
         x = g.reshape(-1, 1)
     else:
-        rad = numpy.linspace(0, numpy.arccos(cos_gd), num=100)
-        w1, w2 = numpy.cos(rad), numpy.sin(rad)
-        d = (d - g * w1[-1]) / w2[-1]  # 正交化
-        x = w1 * g.reshape(-1, 1) + w2 * d.reshape(-1, 1)
+        cos_gd: float = (g @ d) / numpy.sqrt((g @ g) * (d @ d))  # type: ignore
+        if numpy.abs(cos_gd - 1) < numpy.sqrt(_eps):
+            x = g.reshape(-1, 1)
+        else:
+            rad = numpy.linspace(0, numpy.arccos(cos_gd), num=100)
+            w1, w2 = numpy.cos(rad), numpy.sin(rad)
+            d = (d - g * w1[-1]) / w2[-1]  # 正交化
+            x = w1 * g.reshape(-1, 1) + w2 * d.reshape(-1, 1)
 
-    x = clip_sol(x, orig_g, H.value, constraints, delta)
-    return Status(x, ret1.iter, ret1.flag, delta, orig_g, H.value)
+    xx = clip_sol(x, orig_g, H.value, constraints, delta)
+    return Status(xx, ret1.iter, ret1.flag, delta, orig_g, H.value)
