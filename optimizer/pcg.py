@@ -8,6 +8,7 @@ from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
 from overloads.typing import ndarray
 
+from optimizer._internals.common.hessian import Hessian
 from optimizer._internals.common.linneq import constraint_check
 from optimizer._internals.common.norm import norm_l2, safe_normalize
 from optimizer._internals.pcg import flag, status
@@ -29,7 +30,7 @@ nConstraints = dyn_typing.SizeVar()
 dyn_signature = dyn_typing.dyn_check_4(
     input=(
         dyn_typing.NDArray(numpy.float64, (N,)),
-        dyn_typing.NDArray(numpy.float64, (N, N)),
+        dyn_typing.Class(Hessian),
         dyn_typing.Tuple(
             (
                 dyn_typing.NDArray(numpy.float64, (nConstraints, N)),
@@ -45,6 +46,15 @@ dyn_signature = dyn_typing.dyn_check_4(
 
 
 def _pcg_input_check(
+    input: Tuple[ndarray, Hessian, Tuple[ndarray, ndarray, ndarray, ndarray], float]
+) -> None:
+    g, _, constraints, delta = input
+    assertNoInfNaN(g)
+    constraint_check(constraints)
+    assertNoInfNaN_float(delta)
+
+
+def _impl_input_check(
     input: Tuple[ndarray, ndarray, Tuple[ndarray, ndarray, ndarray, ndarray], float]
 ) -> None:
     g, H, constraints, delta = input
@@ -63,7 +73,7 @@ def _impl_output_check(output: Tuple[Status, Optional[ndarray]]) -> None:
         assertNoInfNaN(direct)
 
 
-@bind_checker.bind_checker_4(input=_pcg_input_check, output=_impl_output_check)
+@bind_checker.bind_checker_4(input=_impl_input_check, output=_impl_output_check)
 def _implimentation(
     g: ndarray,
     H: ndarray,
@@ -167,19 +177,23 @@ def _pcg_output_check(output: Status) -> None:
 @bind_checker.bind_checker_4(input=_pcg_input_check, output=_pcg_output_check)
 def pcg(
     g: ndarray,
-    H: ndarray,
+    H: Hessian,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
 ) -> Status:
-    status, direct = _implimentation(g, H, constraints, delta)
+    status, direct = _implimentation(g, H.value, constraints, delta)
     d = status.x
     if direct is not None:
         assert status.flag != Flag.RESIDUAL_CONVERGENCE
-        d = d + clip_direction(direct, g, H, constraints, delta, basement=d)
+        d = d + clip_direction(direct, g, H.value, constraints, delta, basement=d)
     x = circular_interp(-g, d)
-    x_clip = clip_solution(x, g, H, constraints, delta)
-    x_g = clip_direction(-g, g, H, constraints, delta)
-    x_d = clip_direction(d, g, H, constraints, delta)
-    assert qpval(g=g, H=H, x=x_clip) <= qpval(g=g, H=H, x=x_g) + 1e-6
-    assert qpval(g=g, H=H, x=x_clip) <= qpval(g=g, H=H, x=x_d) + 1e-6
-    return Status(x_clip, status.iter, status.flag, delta, g, H)
+    x_clip = clip_solution(x, g, H.value, constraints, delta)
+    x_g = clip_direction(-g, g, H.value, constraints, delta)
+    x_d = clip_direction(d, g, H.value, constraints, delta)
+    x_lstsq = clip_direction(H.pinv @ -g, g, H.value, constraints, delta)
+    assert qpval(g=g, H=H.value, x=x_clip) <= qpval(g=g, H=H.value, x=x_g) + 1e-6
+    assert qpval(g=g, H=H.value, x=x_clip) <= qpval(g=g, H=H.value, x=x_d) + 1e-6
+    if qpval(g=g, H=H.value, x=x_clip) <= qpval(g=g, H=H.value, x=x_lstsq):
+        return Status(x_clip, status.iter, status.flag, delta, g, H.value)
+    else:
+        return Status(x_lstsq, status.iter, status.flag, delta, g, H.value)
