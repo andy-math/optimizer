@@ -77,7 +77,7 @@ def clip_solution(
     bound: ndarray = numpy.abs(rhs.reshape(-1, 1) / lhs)
     bound[a * lhs <= 0] = numpy.inf
 
-    a = numpy.sign(a) * numpy.minimum(numpy.abs(a), (1.0 - 1.0e-4) * bound.min(axis=0))
+    a = numpy.sign(a) * numpy.minimum(numpy.abs(a), 0.9 * bound.min(axis=0))
 
     qpval = a * gx + 0.5 * ((a * a) * xHx)
     index = int(numpy.argmin(qpval))
