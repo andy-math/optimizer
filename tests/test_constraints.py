@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import numpy
 from optimizer import trust_region
-from overloads.typing import ndarray
+from overloads.typedefs import ndarray
 
 """
 f = x^2 + (y-2)^2 = x^2 + y^2 - 4y + 4

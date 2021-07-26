@@ -4,9 +4,10 @@
 from typing import Optional, Tuple
 
 import numpy
+
 from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN, assertNoNaN
-from overloads.typing import ndarray
+from overloads.typedefs import ndarray
 
 
 def noCheck(_: bool) -> None:
@@ -88,7 +89,7 @@ nConstraint = dyn_typing.SizeVar()
     ),
 )
 @bind_checker.bind_checker_2(
-    input=_input_checker, output=bind_checker.make_checker_2(assertNoNaN)
+    input=_input_checker, output=bind_checker.make_checker_2(assertNoNaN, assertNoNaN)
 )
 def margin(
     theta: ndarray, constraints: Tuple[ndarray, ndarray, ndarray, ndarray]

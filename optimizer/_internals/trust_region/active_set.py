@@ -3,7 +3,7 @@ from typing import List, Tuple
 
 import numpy
 from optimizer._internals.common.linneq import margin
-from overloads.typing import ndarray
+from overloads.typedefs import ndarray
 
 """
 lemma 1: 当v是正交的一组单位化列向量，

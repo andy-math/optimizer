@@ -1,6 +1,6 @@
 from typing import NamedTuple
 
-from overloads.typing import ndarray
+from overloads.typedefs import ndarray
 
 
 class Gradient(NamedTuple):

@@ -3,7 +3,7 @@ from typing import Callable, Optional, Tuple
 from optimizer._internals.common.findiff import findiff
 from optimizer._internals.trust_region.options import Trust_Region_Options
 from overloads import difference
-from overloads.typing import ndarray
+from overloads.typedefs import ndarray
 
 
 class Grad_Check_Failed(BaseException):

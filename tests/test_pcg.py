@@ -2,7 +2,7 @@ import math
 
 import numpy
 from optimizer import pcg
-from overloads.typing import ndarray
+from overloads.typedefs import ndarray
 
 EPS = float(numpy.finfo(numpy.float64).eps)
 

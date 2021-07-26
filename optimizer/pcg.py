@@ -6,7 +6,7 @@ from typing import Optional, Tuple, cast
 import numpy
 from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
-from overloads.typing import ndarray
+from overloads.typedefs import ndarray
 
 from optimizer._internals.common.hessian import Hessian
 from optimizer._internals.common.linneq import constraint_check

@@ -5,7 +5,7 @@ import numpy
 from optimizer._internals.common import linneq
 from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN
-from overloads.typing import ndarray
+from overloads.typedefs import ndarray
 
 
 def findiff_check(

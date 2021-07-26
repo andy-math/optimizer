@@ -1,5 +1,5 @@
 from overloads.shortcuts import assertNoInfNaN_float
-from overloads.typing import ndarray
+from overloads.typedefs import ndarray
 
 
 def qpval(*, g: ndarray, H: ndarray, x: ndarray) -> float:

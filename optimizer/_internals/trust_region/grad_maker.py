@@ -5,7 +5,7 @@ from optimizer._internals.common.gradient import Gradient
 from optimizer._internals.trust_region.active_set import active_set
 from optimizer._internals.trust_region.grad_check import gradient_check
 from optimizer._internals.trust_region.options import Trust_Region_Options
-from overloads.typing import ndarray
+from overloads.typedefs import ndarray
 
 
 class GradientCheck(NamedTuple):

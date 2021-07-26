@@ -6,7 +6,7 @@ from typing import Callable, Final, NamedTuple, Optional, Tuple, Union
 import numpy
 from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN
-from overloads.typing import ndarray
+from overloads.typedefs import ndarray
 
 from optimizer import pcg
 from optimizer._internals.common import linneq

@@ -2,7 +2,7 @@ import numpy
 from optimizer._internals.common import findiff
 from overloads import bind_checker, difference, dyn_typing
 from overloads.shortcuts import assertNoInfNaN
-from overloads.typing import ndarray
+from overloads.typedefs import ndarray
 
 H = numpy.array([[2, 1], [1, 1]])
 A = numpy.array([[1, 1]], dtype=numpy.float64)

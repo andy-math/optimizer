@@ -7,7 +7,7 @@ import numpy
 from optimizer._internals.common.norm import norm_l2, safe_normalize
 from overloads import bind_checker
 from overloads.shortcuts import assertNoInfNaN
-from overloads.typing import ndarray
+from overloads.typedefs import ndarray
 
 _eps = float(numpy.finfo(numpy.float64).eps)
 

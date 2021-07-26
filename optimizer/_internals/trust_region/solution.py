@@ -8,7 +8,7 @@ from optimizer._internals.common.gradient import Gradient
 from optimizer._internals.common.hessian import Hessian
 from optimizer._internals.trust_region.frozenstate import FrozenState
 from optimizer._internals.trust_region.grad_maker import GradientCheck, make_gradient
-from overloads.typing import ndarray
+from overloads.typedefs import ndarray
 
 
 class Solution:

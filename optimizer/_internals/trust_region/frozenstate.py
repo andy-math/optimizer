@@ -4,7 +4,7 @@
 from typing import Callable, NamedTuple, Tuple
 
 from optimizer._internals.trust_region import options
-from overloads.typing import ndarray
+from overloads.typedefs import ndarray
 
 
 class FrozenState(NamedTuple):

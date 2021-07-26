@@ -3,7 +3,7 @@ import math
 
 import numpy
 from optimizer import trust_region
-from overloads.typing import ndarray
+from overloads.typedefs import ndarray
 
 
 def func(_x: ndarray) -> float:

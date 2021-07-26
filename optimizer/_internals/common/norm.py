@@ -2,7 +2,7 @@ import math
 from typing import cast
 
 import numpy
-from overloads.typing import ndarray
+from overloads.typedefs import ndarray
 
 
 def norm_inf(x: ndarray) -> float:

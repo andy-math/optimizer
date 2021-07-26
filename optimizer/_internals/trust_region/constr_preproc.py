@@ -2,7 +2,7 @@ import math
 from typing import Tuple
 
 import numpy
-from overloads.typing import ndarray
+from overloads.typedefs import ndarray
 
 
 def constr_preproc(

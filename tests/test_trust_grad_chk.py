@@ -6,7 +6,7 @@ from optimizer import trust_region
 from optimizer._internals.trust_region.grad_check import Grad_Check_Failed
 from overloads import difference
 from overloads.capture_exceptions import Captured_Exception, capture_exceptions
-from overloads.typing import ndarray
+from overloads.typedefs import ndarray
 
 
 def func(_x: ndarray) -> float:

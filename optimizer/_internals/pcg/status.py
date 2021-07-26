@@ -2,7 +2,7 @@ from optimizer._internals.common.norm import norm_l2
 from optimizer._internals.pcg.flag import Flag
 from optimizer._internals.pcg.qpval import qpval
 from overloads.shortcuts import assertNoInfNaN
-from overloads.typing import ndarray
+from overloads.typedefs import ndarray
 
 
 class Status:
