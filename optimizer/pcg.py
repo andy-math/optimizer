@@ -88,7 +88,7 @@ def _implimentation(
     assert numpy.all(H.T == H)
 
     # 归一化初始残差以防止久不收敛
-    R: float = norm_l2(g)
+    R: float = max(norm_l2(g), numpy.sqrt(_eps))
 
     (n,) = g.shape
     x: ndarray = numpy.zeros((n,))  # 目标点
