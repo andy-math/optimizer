@@ -162,6 +162,7 @@ class _trust_region_impl:
         old_sol: Solution = sol0
 
         while True:
+            hessian_force_shake: bool
             new_sol, pcg_status, hessian_force_shake = self._main_loop(
                 sol0, old_sol, hessian
             )
