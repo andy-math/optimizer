@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 
+import math
 from typing import Final, Tuple
 
 from optimizer._internals.common.findiff import findiff
@@ -26,8 +27,11 @@ class Solution:
         g_infnorm: Tuple[(float, float)],
         state: FrozenState,
     ) -> None:
+        fval = state.f(x)
+        # +inf被允许是因为可能存在极大的penalty
+        assert not math.isnan(fval) and fval != -math.inf
         self.state = state
-        self.fval = state.f(x)
+        self.fval = fval
         self.x = x
         self.grad = make_gradient(
             state.g,
