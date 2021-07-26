@@ -99,7 +99,7 @@ class _trust_region_impl:
         if self.delta < self.state.opts.tol_step:
             return self._make_result(new_sol, success=False)
         # 迭代次数超过要求
-        if self.iter > self.state.opts.max_iter:
+        if self.iter >= self.state.opts.max_iter:
             return self._make_result(new_sol, success=False)
         return hessian_force_shake
 
