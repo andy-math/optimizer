@@ -127,12 +127,14 @@ class _trust_region_impl:
         # 根据下降率确定信赖域缩放
         reduce: float = new_sol.fval - old_sol.fval
         ratio = (
-            0 if reduce * pcg_status.fval <= 0 else min(reduce / pcg_status.fval, 1.0)
+            0.0
+            if reduce >= 0
+            else (1.0 if reduce <= pcg_status.fval else reduce / pcg_status.fval)
         )
-        if ratio >= 0.75 and pcg_status.size >= 0.9 * self.delta and reduce < 0:
+        if ratio >= 0.75 and pcg_status.size >= 0.9 * self.delta:
             self.delta *= 2
             hessian_force_shake = False
-        elif ratio <= 0.25 or reduce > 0:
+        elif ratio <= 0.25:
             if not old_sol.hess_up_to_date:
                 hessian_force_shake = True
             else:
