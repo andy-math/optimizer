@@ -4,9 +4,6 @@
 from typing import Callable, Final, NamedTuple, Optional, Tuple, Union
 
 import numpy
-from overloads import bind_checker, dyn_typing
-from overloads.shortcuts import assertNoInfNaN
-from overloads.typedefs import ndarray
 
 from optimizer import pcg
 from optimizer._internals.common import linneq
@@ -16,6 +13,9 @@ from optimizer._internals.trust_region import format, options
 from optimizer._internals.trust_region.constr_preproc import constr_preproc
 from optimizer._internals.trust_region.frozenstate import FrozenState
 from optimizer._internals.trust_region.solution import Solution
+from overloads import bind_checker, dyn_typing
+from overloads.shortcuts import assertNoInfNaN
+from overloads.typedefs import ndarray
 
 Trust_Region_Options = options.Trust_Region_Options
 
@@ -173,6 +173,9 @@ class _trust_region_impl:
             old_sol, sol, pcg_status, hessian_force_shake = self._main_loop(
                 sol0, sol, hessian
             )
+
+            self._output(sol, pcg_status, hessian)
+
             if old_sol is not None:
                 result = self.stop_criteria(
                     old_sol, sol, pcg_status, hessian_force_shake
@@ -180,8 +183,6 @@ class _trust_region_impl:
                 if isinstance(result, Trust_Region_Result):
                     return result
                 sol, pcg_status, hessian_force_shake = result
-
-            self._output(sol, pcg_status, hessian)
 
             # hessian过期则重新采样
             if hessian.times > hessian.max_times and not sol.hess_up_to_date:
