@@ -4,9 +4,6 @@
 from typing import Optional, Tuple, cast
 
 import numpy
-from overloads import bind_checker, dyn_typing
-from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
-from overloads.typedefs import ndarray
 
 from optimizer._internals.common.hessian import Hessian
 from optimizer._internals.common.linneq import constraint_check
@@ -15,6 +12,9 @@ from optimizer._internals.pcg import flag, status
 from optimizer._internals.pcg.circular_interp import circular_interp
 from optimizer._internals.pcg.clip_solution import clip_solution
 from optimizer._internals.pcg.qpval import qpval
+from overloads import bind_checker, dyn_typing
+from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
+from overloads.typedefs import ndarray
 
 Flag = flag.Flag
 Status = status.Status
@@ -87,15 +87,8 @@ def _implimentation(
 
     assert numpy.all(H.T == H)
 
-    # 取 max{ l2norm(col(H)), sqrt(eps) }
-    # 预条件子 M = C.T @ C == diag(R)
-    # 其中 H === H.T  =>  norm(col(H)) === norm(row(H))
-    R: ndarray
-    H_max = numpy.abs(H).max(axis=1, keepdims=True)
-    assert H_max.shape[1] == 1
-    R = H_max[:, 0] * numpy.sqrt(numpy.sum((H / H_max) * (H / H_max), axis=1))
-    R = numpy.minimum(R, norm_l2(g))
-    R = numpy.maximum(R, numpy.sqrt(_eps))
+    # 归一化初始残差以防止久不收敛
+    R: float = norm_l2(g)
 
     (n,) = g.shape
     x: ndarray = numpy.zeros((n,))  # 目标点
