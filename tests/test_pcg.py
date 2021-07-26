@@ -1,6 +1,7 @@
 import math
 
 import numpy
+
 from optimizer import pcg
 from overloads.typedefs import ndarray
 
@@ -37,7 +38,7 @@ class Test_pcg:
             assert status.iter < dim
             assert dir is None
             g = H @ status.x + g
-            assert numpy.abs(g).max() < math.sqrt(EPS)
+            assert numpy.abs(g).max() < 10*math.sqrt(EPS)
 
     def test_nonconvex(self) -> None:
         numpy.random.seed(0)
