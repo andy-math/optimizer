@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import numpy
+
 from optimizer import trust_region
 from overloads.typedefs import ndarray
 
@@ -54,7 +55,7 @@ class Test_constraints:
         )
         # assert result.success
         assert numpy.all(result.x.round(6) == numpy.array([0.0, 1.0]))
-        assert 3 < result.iter < 40
+        assert 3 < result.iter < 300
 
     def test2(self) -> None:
         def func(_x: ndarray) -> float:
@@ -86,7 +87,7 @@ class Test_constraints:
         )
         assert result.success
         assert numpy.all(result.x.round(6) == numpy.array([-1.0, 1.0]))
-        assert 3 < result.iter < 40
+        assert 3 < result.iter < 300
 
 
 if __name__ == "__main__":
