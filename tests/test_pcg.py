@@ -28,7 +28,7 @@ class Test_pcg:
             H = (H.T + H) / 2  # type: ignore
             g = numpy.random.randn(dim)
             qp_eval = QuadEvaluator(g=g, H=H)
-            x = quad_prog._implimentation(qp_eval, delta)
+            x, _ = quad_prog._implimentation(qp_eval, delta)
             g = H @ x + g
             assert numpy.abs(g).max() < 10 * math.sqrt(EPS)
 
@@ -51,7 +51,7 @@ class Test_pcg:
 
             g = numpy.random.randn(dim)
             qp_eval = QuadEvaluator(g=g, H=H)
-            x = quad_prog._implimentation(qp_eval, delta)
+            x, _ = quad_prog._implimentation(qp_eval, delta)
             x2: ndarray = numpy.linalg.lstsq(H, -g, rcond=None)[0]  # type: ignore
             assert 0.5 * (x @ H @ x) + g @ x <= 0.5 * (x2 @ H @ x2) + g @ x2
 
