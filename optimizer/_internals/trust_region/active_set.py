@@ -2,6 +2,7 @@ import math
 from typing import List, Tuple
 
 import numpy
+
 from optimizer._internals.common.linneq import margin
 from overloads.typedefs import ndarray
 
@@ -14,7 +15,7 @@ alpha = inner_product / self_product
 result = v @ alpha
 其中，由单位化，self_product === 1
 因此 alpha === inner_product
-result = v @ (g @ v)
+result = v @ v.T @ g
 """
 
 
@@ -64,7 +65,7 @@ def active_set(
     e: ndarray
     v: ndarray
     if not len(fixing):
-        return g.copy()  # 防止引用穿透
+        return numpy.eye(g.shape[0])
     _eps = float(numpy.finfo(numpy.float64).eps)
     fixA: ndarray = numpy.concatenate(fixing, axis=0)  # type: ignore
     e, v = numpy.linalg.eigh(fixA.T @ fixA)  # type: ignore
@@ -72,7 +73,6 @@ def active_set(
     zero_eigenvalues = numpy.abs(e) <= math.sqrt(_eps)
     zeros = numpy.sum(zero_eigenvalues)
     if not zeros:  # 未找到有效的基，只能返回全0
-        return numpy.zeros(g.shape)
+        return numpy.zeros((g.shape[0], g.shape[0]))
     v = v[:, zero_eigenvalues]
-    approach: ndarray = v @ (g @ v)  # lemma 1
-    return approach  # 直接返回主0基
+    return v @ v.T

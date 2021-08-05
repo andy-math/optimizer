@@ -2,7 +2,7 @@
 
 
 import math
-from typing import Final, Tuple
+from typing import Final, Tuple, cast
 
 from optimizer._internals.common.findiff import findiff
 from optimizer._internals.common.gradient import Gradient
@@ -45,13 +45,10 @@ class Solution:
 
     def get_hessian(self) -> Hessian:
         self.hess_up_to_date = True
-        H = findiff(
-            lambda x: make_gradient(
-                self.state.g, x, self.state.constraints, self.state.opts, check=None
-            ).value,
-            self.x,
-            self.state.constraints,
-        )
+        H = findiff(self.state.g, self.x, self.state.constraints)
+        H = cast(ndarray, H.T + H) / 2.0
+        VVT = self.grad.VVT
+        H = VVT @ H @ VVT
         return Hessian(
             H,
             max_times=self.x.shape[0]
