@@ -106,7 +106,7 @@ def _pcg_output_check(output: Status) -> None:
     input=bind_checker.make_checker_3(no_check, constraint_check, assertNoInfNaN_float),
     output=_pcg_output_check,
 )
-def pcg(
+def quad_prog(
     qpval: QuadEvaluator,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,

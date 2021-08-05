@@ -113,7 +113,7 @@ class _trust_region_impl:
 
         # PCG
         qp_eval = QuadEvaluator(g=old_sol.grad.value, H=hessian.value)
-        pcg_status = quad_prog.pcg(qp_eval, old_sol.shifted_constr, self.delta)
+        pcg_status = quad_prog.quad_prog(qp_eval, old_sol.shifted_constr, self.delta)
         self.iter += 1
         hessian.times += 1
 
