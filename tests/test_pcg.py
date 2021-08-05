@@ -13,7 +13,7 @@ class Test_pcg:
     def test_convex(self) -> None:
         numpy.random.seed(0)
         dim = 10
-        delta = 99999999
+        delta = 9999
         constraints = (
             numpy.empty((0, dim)),
             numpy.empty((0,)),
@@ -35,17 +35,14 @@ class Test_pcg:
             H = (H.T + H) / 2  # type: ignore
             g = numpy.random.randn(dim)
             qp_eval = QuadEvaluator(g=g, H=H)
-            status, dir = pcg._implimentation(qp_eval, constraints, delta)
-            assert status.flag == pcg.Flag.RESIDUAL_CONVERGENCE
-            assert status.iter < dim
-            assert dir is None
-            g = H @ status.x + g
+            x = pcg._implimentation(qp_eval, constraints, delta)
+            g = H @ x + g
             assert numpy.abs(g).max() < 10 * math.sqrt(EPS)
 
     def test_nonconvex(self) -> None:
         numpy.random.seed(0)
         dim = 10
-        delta = 99999999
+        delta = 9999
         constraints = (
             numpy.empty((0, dim)),
             numpy.empty((0,)),
@@ -68,16 +65,9 @@ class Test_pcg:
 
             g = numpy.random.randn(dim)
             qp_eval = QuadEvaluator(g=g, H=H)
-            status, dir = pcg._implimentation(qp_eval, constraints, delta)
-            if status.flag == pcg.Flag.RESIDUAL_CONVERGENCE:
-                assert dir is None
-                g = H @ status.x + g
-                assert numpy.abs(g).max() < math.sqrt(EPS)
-            else:
-                assert status.flag == pcg.Flag.NEGATIVE_CURVATURE
-                assert status.iter < dim
-                assert dir is not None
-                assert dir @ H @ dir < math.sqrt(EPS)
+            x = pcg._implimentation(qp_eval, constraints, delta)
+            x2: ndarray = numpy.linalg.lstsq(H, -g, rcond=None)[0]  # type: ignore
+            assert 0.5 * (x @ H @ x) + g @ x <= 0.5 * (x2 @ H @ x2) + g @ x2
 
 
 if __name__ == "__main__":
