@@ -100,19 +100,9 @@ def clip_direction(
     H: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
-    *,
-    basement: Optional[ndarray] = None
 ) -> ndarray:
-    A, b, lb, ub = constraints
-    if basement is not None:
-        delta = numpy.sqrt(delta * delta - basement @ basement)
-        assert numpy.isfinite(delta)
-        g = g + H @ basement
-        b = b - A @ basement
-        lb = lb - basement
-        ub = ub - basement
     x = safe_normalize(x).reshape((-1, 1))
-    return clip_solution(x, g, H, (A, b, lb, ub), delta)
+    return clip_solution(x, g, H, constraints, delta)
 
 
 def _pcg_output_check(output: Status) -> None:
