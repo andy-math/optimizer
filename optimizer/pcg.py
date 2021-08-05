@@ -2,7 +2,7 @@
 
 
 import math
-from typing import Optional, Tuple
+from typing import Tuple
 
 import numpy
 import scipy.optimize  # type: ignore
@@ -125,16 +125,6 @@ def pcg(
     x_clip = clip_solution(x, g, H, constraints, delta)
     x_g = clip_direction(-g, g, H, constraints, delta)
     x_d = clip_direction(d, g, H, constraints, delta)
-    x_lstsq = clip_direction(
-        numpy.linalg.lstsq(H, -g, rcond=None)[0],  # type: ignore
-        g,
-        H,
-        constraints,
-        delta,
-    )
     assert qpval(x_clip) <= qpval(x_g) + 1e-6
     assert qpval(x_clip) <= qpval(x_d) + 1e-6
-    if qpval(x_clip) <= qpval(x_lstsq):
-        return Status(x_clip, 0, flag.Flag.POLICY_ONLY, delta, qpval)
-    else:
-        return Status(x_lstsq, 0, flag.Flag.POLICY_ONLY, delta, qpval)
+    return Status(x_clip, 0, flag.Flag.POLICY_ONLY, delta, qpval)
