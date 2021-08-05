@@ -5,11 +5,11 @@ from typing import Callable, Final, NamedTuple, Optional, Tuple, Union
 
 import numpy
 
-from optimizer import pcg
+from optimizer import quad_prog
 from optimizer._internals.common import linneq
 from optimizer._internals.common.gradient import Gradient
 from optimizer._internals.common.hessian import Hessian
-from optimizer._internals.pcg.qpval import QuadEvaluator
+from optimizer._internals.quad_prog.quad_eval import QuadEvaluator
 from optimizer._internals.trust_region import format, options
 from optimizer._internals.trust_region.constr_preproc import constr_preproc
 from optimizer._internals.trust_region.frozenstate import FrozenState
@@ -65,7 +65,7 @@ class _trust_region_impl:
         )
 
     def _output(
-        self, sol: Solution, pcg_status: Optional[pcg.Status], hessian: Hessian
+        self, sol: Solution, pcg_status: Optional[quad_prog.Status], hessian: Hessian
     ) -> None:
         if self.state.opts.display:
             print(format.format(self.iter, sol, hessian, pcg_status))
@@ -74,14 +74,17 @@ class _trust_region_impl:
         self,
         old_sol: Solution,
         new_sol: Solution,
-        pcg_status: pcg.Status,
+        pcg_status: quad_prog.Status,
         hessian_force_shake: bool,
     ) -> Union[bool, Trust_Region_Result]:
         if pcg_status.x is not None:
             assert pcg_status.fval is not None
             assert pcg_status.size is not None
             # PCG正定收敛
-            if pcg_status.flag in (pcg.Flag.RESIDUAL_CONVERGENCE, pcg.Flag.POLICY_ONLY):
+            if pcg_status.flag in (
+                quad_prog.Flag.RESIDUAL_CONVERGENCE,
+                quad_prog.Flag.POLICY_ONLY,
+            ):
                 # 梯度足够小的case无关乎hessian信息
                 if new_sol.grad.infnorm < self.state.opts.tol_grad:
                     return self._make_result(new_sol, success=True)
@@ -106,11 +109,11 @@ class _trust_region_impl:
 
     def _main_loop(
         self, sol0: Solution, old_sol: Solution, hessian: Hessian
-    ) -> Tuple[Solution, pcg.Status, bool]:
+    ) -> Tuple[Solution, quad_prog.Status, bool]:
 
         # PCG
         qp_eval = QuadEvaluator(g=old_sol.grad.value, H=hessian.value)
-        pcg_status = pcg.pcg(qp_eval, old_sol.shifted_constr, self.delta)
+        pcg_status = quad_prog.pcg(qp_eval, old_sol.shifted_constr, self.delta)
         self.iter += 1
         hessian.times += 1
 

@@ -2,7 +2,7 @@ import math
 from typing import Dict, List, Literal, Optional
 
 from optimizer._internals.common.hessian import Hessian
-from optimizer._internals.pcg.status import Status
+from optimizer._internals.quad_prog.status import Status
 from optimizer._internals.trust_region.solution import Solution
 
 _format_times: int = 0

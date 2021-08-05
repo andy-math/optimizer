@@ -1,6 +1,6 @@
 from optimizer._internals.common.norm import norm_l2
-from optimizer._internals.pcg.flag import Flag
-from optimizer._internals.pcg.qpval import QuadEvaluator
+from optimizer._internals.quad_prog.flag import Flag
+from optimizer._internals.quad_prog.quad_eval import QuadEvaluator
 from overloads.shortcuts import assertNoInfNaN
 from overloads.typedefs import ndarray
 

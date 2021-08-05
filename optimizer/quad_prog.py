@@ -9,10 +9,10 @@ import scipy.optimize  # type: ignore
 
 from optimizer._internals.common.linneq import constraint_check
 from optimizer._internals.common.norm import norm_l2, safe_normalize
-from optimizer._internals.pcg import flag, status
-from optimizer._internals.pcg.circular_interp import circular_interp
-from optimizer._internals.pcg.clip_solution import clip_solution
-from optimizer._internals.pcg.qpval import QuadEvaluator
+from optimizer._internals.quad_prog import flag, status
+from optimizer._internals.quad_prog.circular_interp import circular_interp
+from optimizer._internals.quad_prog.clip_solution import clip_solution
+from optimizer._internals.quad_prog.quad_eval import QuadEvaluator
 from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
 from overloads.typedefs import ndarray
