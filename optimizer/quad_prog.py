@@ -71,7 +71,7 @@ def _implimentation(qpval: QuadEvaluator, delta: float) -> ndarray:
             return s
 
     def secular(lambda_: float) -> float:
-        if min_lambda + lambda_ == 0:
+        if min_lambda + lambda_ <= 0:
             return 1 / delta
         alpha: ndarray = vg / (e + lambda_)
         return (1 / delta) - (1 / norm_l2(alpha))
@@ -89,7 +89,11 @@ def _implimentation(qpval: QuadEvaluator, delta: float) -> ndarray:
     lambda_ = scipy.optimize.brentq(
         secular, *init_guess(), maxiter=2 ** 31 - 1, disp=False
     )
-    s = v @ (vg / (e + lambda_))
+    e = e + lambda_
+    assert not numpy.any(e < 0)
+    if numpy.any(e == 0):
+        e[e == 0] = _eps
+    s = v @ (vg / e)
     return delta * safe_normalize(s)
 
 
