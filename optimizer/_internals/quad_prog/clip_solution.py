@@ -28,19 +28,26 @@ def _input_check(
     assertNoInfNaN_float(delta)
 
 
-def _output_check(x: ndarray) -> None:
+def _output_check_x(x: ndarray) -> None:
     assert len(x.shape) == 1
     assertNoInfNaN(x)
 
 
-@bind_checker.bind_checker_5(input=_input_check, output=_output_check)
+def _output_check_bool(_: bool) -> None:
+    pass
+
+
+@bind_checker.bind_checker_5(
+    input=_input_check,
+    output=bind_checker.make_checker_2(_output_check_x, _output_check_bool),
+)
 def clip_solution(
     x: ndarray,
     g: ndarray,
     H: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
-) -> ndarray:
+) -> Tuple[ndarray, bool]:
     """
     x: S个N-dim的列向量
     先 assert 它们都是单位向量
@@ -78,10 +85,12 @@ def clip_solution(
     bound: ndarray = numpy.abs(rhs.reshape(-1, 1) / lhs)
     bound[a * lhs <= 0] = numpy.inf
 
-    a = numpy.sign(a) * numpy.minimum(numpy.abs(a), 0.5 * bound.min(axis=0))
+    bound = 0.5 * bound.min(axis=0)
+    violate = numpy.abs(a) > bound
+    a = numpy.sign(a) * numpy.minimum(numpy.abs(a), bound)
 
     qpval = a * gx + 0.5 * ((a * a) * xHx)
     index = int(numpy.argmin(qpval))
     x = a[index] * x[:, index]
     # assert check(x, constraints)
-    return x
+    return x, bool(violate[index])
