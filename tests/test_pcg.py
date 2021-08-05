@@ -14,12 +14,6 @@ class Test_pcg:
         numpy.random.seed(0)
         dim = 10
         delta = 9999
-        constraints = (
-            numpy.empty((0, dim)),
-            numpy.empty((0,)),
-            numpy.full((dim,), -numpy.inf),
-            numpy.full((dim,), numpy.inf),
-        )
         for _ in range(1000):
             H = numpy.random.randn(dim, dim)
             H = (H.T + H) / 2  # type: ignore
@@ -35,7 +29,7 @@ class Test_pcg:
             H = (H.T + H) / 2  # type: ignore
             g = numpy.random.randn(dim)
             qp_eval = QuadEvaluator(g=g, H=H)
-            x = pcg._implimentation(qp_eval, constraints, delta)
+            x = pcg._implimentation(qp_eval, delta)
             g = H @ x + g
             assert numpy.abs(g).max() < 10 * math.sqrt(EPS)
 
@@ -43,12 +37,6 @@ class Test_pcg:
         numpy.random.seed(0)
         dim = 10
         delta = 9999
-        constraints = (
-            numpy.empty((0, dim)),
-            numpy.empty((0,)),
-            numpy.full((dim,), -numpy.inf),
-            numpy.full((dim,), numpy.inf),
-        )
         for _ in range(1000):
             H = numpy.random.randn(dim, dim)
             H = (H.T + H) / 2  # type: ignore
@@ -65,7 +53,7 @@ class Test_pcg:
 
             g = numpy.random.randn(dim)
             qp_eval = QuadEvaluator(g=g, H=H)
-            x = pcg._implimentation(qp_eval, constraints, delta)
+            x = pcg._implimentation(qp_eval, delta)
             x2: ndarray = numpy.linalg.lstsq(H, -g, rcond=None)[0]  # type: ignore
             assert 0.5 * (x @ H @ x) + g @ x <= 0.5 * (x2 @ H @ x2) + g @ x2
 
