@@ -172,7 +172,7 @@ def pcg(
     x_g = clip_direction(-g, g, H, constraints, delta)
     x_d = clip_direction(d, g, H, constraints, delta)
     x_lstsq = clip_direction(
-        numpy.linalg.lstsq(H, -g),  # type: ignore
+        numpy.linalg.lstsq(H, -g)[0],  # type: ignore
         g,
         H,
         constraints,
