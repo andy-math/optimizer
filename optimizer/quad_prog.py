@@ -122,13 +122,17 @@ def quad_prog(
 ) -> Status:
     g, H = qpval.g, qpval.H
     d, flag = _implimentation(qpval, delta)
-    x_clip, violate = clip_solution(circular_interp(-g, d), g, H, constraints, delta)
+    x_interp = circular_interp(-g, d)
+    x_clip, violate, index = clip_solution(x_interp, g, H, constraints, delta)
+    angle = 0 if x_interp.shape[1] <= 2 else index / (x_interp.shape[1] - 1)
     if violate:
         flag = Flag.CONSTRAINT
-    x_g, _ = clip_solution(
+    x_g, _, _ = clip_solution(
         safe_normalize(-g).reshape((-1, 1)), g, H, constraints, delta
     )
-    x_d, _ = clip_solution(safe_normalize(d).reshape((-1, 1)), g, H, constraints, delta)
+    x_d, _, _ = clip_solution(
+        safe_normalize(d).reshape((-1, 1)), g, H, constraints, delta
+    )
     assert qpval(x_clip) <= qpval(x_g) + 1e-6
     assert qpval(x_clip) <= qpval(x_d) + 1e-6
-    return Status(x_clip, 0, flag, delta, qpval)
+    return Status(x_clip, angle, flag, delta, qpval)

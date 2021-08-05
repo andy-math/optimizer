@@ -37,9 +37,15 @@ def _output_check_bool(_: bool) -> None:
     pass
 
 
+def _output_check_int(_: int) -> None:
+    pass
+
+
 @bind_checker.bind_checker_5(
     input=_input_check,
-    output=bind_checker.make_checker_2(_output_check_x, _output_check_bool),
+    output=bind_checker.make_checker_3(
+        _output_check_x, _output_check_bool, _output_check_int
+    ),
 )
 def clip_solution(
     x: ndarray,
@@ -47,7 +53,7 @@ def clip_solution(
     H: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
-) -> Tuple[ndarray, bool]:
+) -> Tuple[ndarray, bool, int]:
     """
     x: S个N-dim的列向量
     先 assert 它们都是单位向量
@@ -93,4 +99,4 @@ def clip_solution(
     index = int(numpy.argmin(qpval))
     x = a[index] * x[:, index]
     # assert check(x, constraints)
-    return x, bool(violate[index])
+    return x, bool(violate[index]), index
