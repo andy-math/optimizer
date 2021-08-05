@@ -20,7 +20,6 @@ class Test_pcg:
             V: ndarray
             E: ndarray
             E, V = numpy.linalg.eigh(H)  # type: ignore
-            E = E.real
             assert numpy.abs(
                 V @ numpy.diag(E) @ V.T - H  # type: ignore
             ).max() < math.sqrt(EPS)
@@ -43,7 +42,6 @@ class Test_pcg:
             V: ndarray
             E: ndarray
             E, V = numpy.linalg.eigh(H)  # type: ignore
-            E = E.real
             assert numpy.abs(
                 V @ numpy.diag(E) @ V.T - H  # type: ignore
             ).max() < math.sqrt(EPS)
