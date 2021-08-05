@@ -110,8 +110,7 @@ def pcg(
 ) -> Status:
     g, H = qpval.g, qpval.H
     d = _implimentation(qpval, delta)
-    x = circular_interp(-g, d)
-    x_clip = clip_solution(x, g, H, constraints, delta)
+    x_clip = clip_solution(circular_interp(-g, d), g, H, constraints, delta)
     x_g = clip_solution(safe_normalize(-g).reshape((-1, 1)), g, H, constraints, delta)
     x_d = clip_solution(safe_normalize(d).reshape((-1, 1)), g, H, constraints, delta)
     assert qpval(x_clip) <= qpval(x_g) + 1e-6
