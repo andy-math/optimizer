@@ -68,7 +68,6 @@ def active_set(
     _eps = float(numpy.finfo(numpy.float64).eps)
     fixA: ndarray = numpy.concatenate(fixing, axis=0)  # type: ignore
     e, v = numpy.linalg.eigh(fixA.T @ fixA)  # type: ignore
-    e = e.real
 
     zero_eigenvalues = numpy.abs(e) <= math.sqrt(_eps)
     zeros = numpy.sum(zero_eigenvalues)
