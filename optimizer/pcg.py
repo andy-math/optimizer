@@ -49,15 +49,11 @@ def no_check(_: QuadEvaluator) -> None:
     pass
 
 
-@bind_checker.bind_checker_3(
-    input=bind_checker.make_checker_3(no_check, constraint_check, assertNoInfNaN_float),
+@bind_checker.bind_checker_2(
+    input=bind_checker.make_checker_2(no_check, assertNoInfNaN_float),
     output=assertNoInfNaN,
 )
-def _implimentation(
-    qpval: QuadEvaluator,
-    constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
-    delta: float,
-) -> ndarray:
+def _implimentation(qpval: QuadEvaluator, delta: float) -> ndarray:
     g, H = qpval.g, qpval.H
     if norm_l2(g) < math.sqrt(_eps):
         return -g
@@ -134,7 +130,7 @@ def pcg(
     delta: float,
 ) -> Status:
     g, H = qpval.g, qpval.H
-    d = _implimentation(qpval, constraints, delta)
+    d = _implimentation(qpval, delta)
     x = circular_interp(-g, d)
     x_clip = clip_solution(x, g, H, constraints, delta)
     x_g = clip_direction(-g, g, H, constraints, delta)
