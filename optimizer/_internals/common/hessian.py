@@ -16,7 +16,7 @@ class Hessian:
         _err = math.sqrt(float(numpy.finfo(numpy.float64).eps))
 
         value = (value.T + value) / 2.0  # type: ignore
-        e: ndarray = numpy.linalg.eig(value)[0]  # type: ignore
+        e: ndarray = numpy.linalg.eigh(value)[0]  # type: ignore
         e = e.real
         assert e.dtype.type == numpy.float64
         min_e = float(e.min())

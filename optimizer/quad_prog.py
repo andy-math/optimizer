@@ -60,8 +60,7 @@ def _implimentation(qpval: QuadEvaluator, delta: float) -> ndarray:
 
     e: ndarray
     v: ndarray
-    e, v = numpy.linalg.eig(H)  # type: ignore
-    e = e.real
+    e, v = numpy.linalg.eigh(H)  # type: ignore
     min_lambda = float(e.min())
     vg: ndarray = -g @ v
 

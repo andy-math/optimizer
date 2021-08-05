@@ -19,7 +19,7 @@ class Test_pcg:
             H = (H.T + H) / 2  # type: ignore
             V: ndarray
             E: ndarray
-            E, V = numpy.linalg.eig(H)  # type: ignore
+            E, V = numpy.linalg.eigh(H)  # type: ignore
             E = E.real
             assert numpy.abs(
                 V @ numpy.diag(E) @ V.T - H  # type: ignore
@@ -42,7 +42,7 @@ class Test_pcg:
             H = (H.T + H) / 2  # type: ignore
             V: ndarray
             E: ndarray
-            E, V = numpy.linalg.eig(H)  # type: ignore
+            E, V = numpy.linalg.eigh(H)  # type: ignore
             E = E.real
             assert numpy.abs(
                 V @ numpy.diag(E) @ V.T - H  # type: ignore
