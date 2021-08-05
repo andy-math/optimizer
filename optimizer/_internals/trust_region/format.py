@@ -11,8 +11,8 @@ _format_width: Dict[str, int] = {
     "F-Val": 14,
     "Step": 13,
     "Grad": 9,
-    "CG": 1,
-    "CG Exit": 20,
+    "Angle": 5,
+    "Quad Prog": 10,
     "is Posdef": 11,
     "Hessian": 7,
 }
@@ -24,8 +24,8 @@ def _format(
     fval: float,
     step: float,
     grad: float,
-    CGiter: int,
-    CGexit: str,
+    QPangle: float,
+    QPexit: str,
     posdef: str,
     shaking: Literal["Shaking", "       "],
 ) -> str:
@@ -35,8 +35,8 @@ def _format(
         "F-Val": f"{fval: 10.8g}",
         "Step": f"{step:13.6g}",
         "Grad": f"{grad:6.4g}",
-        "CG": f"{CGiter:2d}",
-        "CG Exit": CGexit,
+        "Angle": f"{QPangle:4.1f}%",
+        "Quad Prog": QPexit,
         "is Posdef": posdef,
         "Hessian": shaking,
     }
@@ -75,8 +75,8 @@ def format(
             else pcg_status.size
         ),
         grad=sol.grad.infnorm,
-        CGiter=0 if pcg_status is None else pcg_status.iter,
-        CGexit="None" if pcg_status is None else pcg_status.flag.name,
+        QPangle=0 if pcg_status is None else pcg_status.angle,
+        QPexit="None" if pcg_status is None else pcg_status.flag.name,
         posdef="-*- ill -*-" if hessian.ill else "           ",
         shaking="Shaking" if hessian.times == 1 else "       ",
     )

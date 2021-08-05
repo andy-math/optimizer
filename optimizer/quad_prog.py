@@ -45,18 +45,22 @@ dyn_signature = dyn_typing.dyn_check_3(
 )
 
 
-def no_check(_: QuadEvaluator) -> None:
+def no_check_QPeval(_: QuadEvaluator) -> None:
+    pass
+
+
+def no_check_Flag(_: Flag) -> None:
     pass
 
 
 @bind_checker.bind_checker_2(
-    input=bind_checker.make_checker_2(no_check, assertNoInfNaN_float),
-    output=assertNoInfNaN,
+    input=bind_checker.make_checker_2(no_check_QPeval, assertNoInfNaN_float),
+    output=bind_checker.make_checker_2(assertNoInfNaN, no_check_Flag),
 )
-def _implimentation(qpval: QuadEvaluator, delta: float) -> ndarray:
+def _implimentation(qpval: QuadEvaluator, delta: float) -> Tuple[ndarray, Flag]:
     g, H = qpval.g, qpval.H
     if norm_l2(g) < math.sqrt(_eps):
-        return -g
+        return -g, Flag.INTERIOR
 
     e: ndarray
     v: ndarray
@@ -68,7 +72,9 @@ def _implimentation(qpval: QuadEvaluator, delta: float) -> ndarray:
     if min_lambda > 0:
         s = v @ (vg / e)
         if norm_l2(s) <= delta:
-            return s
+            return s, Flag.INTERIOR
+
+    flag: Flag = Flag.BOUNDARY
 
     def secular(lambda_: float) -> float:
         if min_lambda + lambda_ <= 0:
@@ -92,9 +98,10 @@ def _implimentation(qpval: QuadEvaluator, delta: float) -> ndarray:
     e = e + lambda_
     assert not numpy.any(e < 0)
     if numpy.any(e == 0):
+        flag = Flag.FATAL
         e[e == 0] = _eps
     s = v @ (vg / e)
-    return delta * safe_normalize(s)
+    return delta * safe_normalize(s), flag
 
 
 def _pcg_output_check(output: Status) -> None:
@@ -103,7 +110,9 @@ def _pcg_output_check(output: Status) -> None:
 
 @dyn_signature
 @bind_checker.bind_checker_3(
-    input=bind_checker.make_checker_3(no_check, constraint_check, assertNoInfNaN_float),
+    input=bind_checker.make_checker_3(
+        no_check_QPeval, constraint_check, assertNoInfNaN_float
+    ),
     output=_pcg_output_check,
 )
 def quad_prog(
@@ -112,10 +121,10 @@ def quad_prog(
     delta: float,
 ) -> Status:
     g, H = qpval.g, qpval.H
-    d = _implimentation(qpval, delta)
+    d, flag = _implimentation(qpval, delta)
     x_clip = clip_solution(circular_interp(-g, d), g, H, constraints, delta)
     x_g = clip_solution(safe_normalize(-g).reshape((-1, 1)), g, H, constraints, delta)
     x_d = clip_solution(safe_normalize(d).reshape((-1, 1)), g, H, constraints, delta)
     assert qpval(x_clip) <= qpval(x_g) + 1e-6
     assert qpval(x_clip) <= qpval(x_d) + 1e-6
-    return Status(x_clip, 0, flag.Flag.POLICY_ONLY, delta, qpval)
+    return Status(x_clip, 0, flag, delta, qpval)

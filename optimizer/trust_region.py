@@ -81,10 +81,7 @@ class _trust_region_impl:
             assert pcg_status.fval is not None
             assert pcg_status.size is not None
             # PCG正定收敛
-            if pcg_status.flag in (
-                quad_prog.Flag.RESIDUAL_CONVERGENCE,
-                quad_prog.Flag.POLICY_ONLY,
-            ):
+            if pcg_status.flag != quad_prog.Flag.FATAL:
                 # 梯度足够小的case无关乎hessian信息
                 if new_sol.grad.infnorm < self.state.opts.tol_grad:
                     return self._make_result(new_sol, success=True)
