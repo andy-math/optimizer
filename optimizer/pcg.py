@@ -94,17 +94,6 @@ def _implimentation(qpval: QuadEvaluator, delta: float) -> ndarray:
     return delta * safe_normalize(s)
 
 
-def clip_direction(
-    x: ndarray,
-    g: ndarray,
-    H: ndarray,
-    constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
-    delta: float,
-) -> ndarray:
-    x = safe_normalize(x).reshape((-1, 1))
-    return clip_solution(x, g, H, constraints, delta)
-
-
 def _pcg_output_check(output: Status) -> None:
     pass
 
