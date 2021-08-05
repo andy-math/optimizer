@@ -2,12 +2,12 @@ import math
 from typing import Final
 
 import numpy
+
 from overloads.typedefs import ndarray
 
 
 class Hessian:
     value: Final[ndarray]
-    pinv: Final[ndarray]
     ill: Final[bool]
     times: int = 0
     max_times: Final[int]
@@ -22,6 +22,5 @@ class Hessian:
         min_e = float(e.min())
 
         self.value = value
-        self.pinv = numpy.linalg.pinv(value)  # type: ignore
         self.ill = min_e < _err
         self.max_times = max_times

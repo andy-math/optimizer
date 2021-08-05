@@ -5,13 +5,12 @@ from typing import Optional, Tuple, cast
 
 import numpy
 
-from optimizer._internals.common.hessian import Hessian
 from optimizer._internals.common.linneq import constraint_check
 from optimizer._internals.common.norm import norm_l2, safe_normalize
 from optimizer._internals.pcg import flag, status
 from optimizer._internals.pcg.circular_interp import circular_interp
 from optimizer._internals.pcg.clip_solution import clip_solution
-from optimizer._internals.pcg.qpval import qpval
+from optimizer._internals.pcg.qpval import QuadEvaluator
 from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
 from overloads.typedefs import ndarray
@@ -27,10 +26,9 @@ nConstraints = dyn_typing.SizeVar()
 """
 动态类型签名
 """
-dyn_signature = dyn_typing.dyn_check_4(
+dyn_signature = dyn_typing.dyn_check_3(
     input=(
-        dyn_typing.NDArray(numpy.float64, (N,)),
-        dyn_typing.Class(Hessian),
+        dyn_typing.Class(QuadEvaluator),
         dyn_typing.Tuple(
             (
                 dyn_typing.NDArray(numpy.float64, (nConstraints, N)),
@@ -45,23 +43,8 @@ dyn_signature = dyn_typing.dyn_check_4(
 )
 
 
-def _pcg_input_check(
-    input: Tuple[ndarray, Hessian, Tuple[ndarray, ndarray, ndarray, ndarray], float]
-) -> None:
-    g, _, constraints, delta = input
-    assertNoInfNaN(g)
-    constraint_check(constraints)
-    assertNoInfNaN_float(delta)
-
-
-def _impl_input_check(
-    input: Tuple[ndarray, ndarray, Tuple[ndarray, ndarray, ndarray, ndarray], float]
-) -> None:
-    g, H, constraints, delta = input
-    assertNoInfNaN(g)
-    assertNoInfNaN(H)
-    constraint_check(constraints)
-    assertNoInfNaN_float(delta)
+def no_check(_: QuadEvaluator) -> None:
+    pass
 
 
 def _impl_output_check(output: Tuple[Status, Optional[ndarray]]) -> None:
@@ -73,19 +56,21 @@ def _impl_output_check(output: Tuple[Status, Optional[ndarray]]) -> None:
         assertNoInfNaN(direct)
 
 
-@bind_checker.bind_checker_4(input=_impl_input_check, output=_impl_output_check)
+@bind_checker.bind_checker_3(
+    input=bind_checker.make_checker_3(no_check, constraint_check, assertNoInfNaN_float),
+    output=_impl_output_check,
+)
 def _implimentation(
-    g: ndarray,
-    H: ndarray,
+    qpval: QuadEvaluator,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
 ) -> Tuple[Status, Optional[ndarray]]:
     def exit_(
         x: ndarray, d: Optional[ndarray], iter: int, flag: Flag
     ) -> Tuple[Status, Optional[ndarray]]:
-        return Status(x, iter, flag, delta, g, H), d
+        return Status(x, iter, flag, delta, qpval), d
 
-    assert numpy.all(H.T == H)
+    g, H = qpval.g, qpval.H
 
     # 归一化初始残差以防止久不收敛
     R: float = max(norm_l2(g), numpy.sqrt(_eps))
@@ -167,26 +152,35 @@ def _pcg_output_check(output: Status) -> None:
 
 
 @dyn_signature
-@bind_checker.bind_checker_4(input=_pcg_input_check, output=_pcg_output_check)
+@bind_checker.bind_checker_3(
+    input=bind_checker.make_checker_3(no_check, constraint_check, assertNoInfNaN_float),
+    output=_pcg_output_check,
+)
 def pcg(
-    g: ndarray,
-    H: Hessian,
+    qpval: QuadEvaluator,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     delta: float,
 ) -> Status:
-    status, direct = _implimentation(g, H.value, constraints, delta)
+    g, H = qpval.g, qpval.H
+    status, direct = _implimentation(qpval, constraints, delta)
     d = status.x
     if direct is not None:
         assert status.flag != Flag.RESIDUAL_CONVERGENCE
-        d = d + clip_direction(direct, g, H.value, constraints, delta, basement=d)
+        d = d + clip_direction(direct, g, H, constraints, delta, basement=d)
     x = circular_interp(-g, d)
-    x_clip = clip_solution(x, g, H.value, constraints, delta)
-    x_g = clip_direction(-g, g, H.value, constraints, delta)
-    x_d = clip_direction(d, g, H.value, constraints, delta)
-    x_lstsq = clip_direction(H.pinv @ -g, g, H.value, constraints, delta)
-    assert qpval(g=g, H=H.value, x=x_clip) <= qpval(g=g, H=H.value, x=x_g) + 1e-6
-    assert qpval(g=g, H=H.value, x=x_clip) <= qpval(g=g, H=H.value, x=x_d) + 1e-6
-    if qpval(g=g, H=H.value, x=x_clip) <= qpval(g=g, H=H.value, x=x_lstsq):
-        return Status(x_clip, status.iter, status.flag, delta, g, H.value)
+    x_clip = clip_solution(x, g, H, constraints, delta)
+    x_g = clip_direction(-g, g, H, constraints, delta)
+    x_d = clip_direction(d, g, H, constraints, delta)
+    x_lstsq = clip_direction(
+        numpy.linalg.lstsq(H, -g),  # type: ignore
+        g,
+        H,
+        constraints,
+        delta,
+    )
+    assert qpval(x_clip) <= qpval(x_g) + 1e-6
+    assert qpval(x_clip) <= qpval(x_d) + 1e-6
+    if qpval(x_clip) <= qpval(x_lstsq):
+        return Status(x_clip, status.iter, status.flag, delta, qpval)
     else:
-        return Status(x_lstsq, status.iter, status.flag, delta, g, H.value)
+        return Status(x_lstsq, status.iter, status.flag, delta, qpval)

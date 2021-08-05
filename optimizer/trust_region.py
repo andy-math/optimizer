@@ -9,6 +9,7 @@ from optimizer import pcg
 from optimizer._internals.common import linneq
 from optimizer._internals.common.gradient import Gradient
 from optimizer._internals.common.hessian import Hessian
+from optimizer._internals.pcg.qpval import QuadEvaluator
 from optimizer._internals.trust_region import format, options
 from optimizer._internals.trust_region.constr_preproc import constr_preproc
 from optimizer._internals.trust_region.frozenstate import FrozenState
@@ -108,9 +109,8 @@ class _trust_region_impl:
     ) -> Tuple[Solution, pcg.Status, bool]:
 
         # PCG
-        pcg_status = pcg.pcg(
-            old_sol.grad.value, hessian, old_sol.shifted_constr, self.delta
-        )
+        qp_eval = QuadEvaluator(g=old_sol.grad.value, H=hessian.value)
+        pcg_status = pcg.pcg(qp_eval, old_sol.shifted_constr, self.delta)
         self.iter += 1
         hessian.times += 1
 

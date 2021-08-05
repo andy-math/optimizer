@@ -3,6 +3,7 @@ import math
 import numpy
 
 from optimizer import pcg
+from optimizer._internals.pcg.qpval import QuadEvaluator
 from overloads.typedefs import ndarray
 
 EPS = float(numpy.finfo(numpy.float64).eps)
@@ -33,12 +34,13 @@ class Test_pcg:
 
             H = (H.T + H) / 2  # type: ignore
             g = numpy.random.randn(dim)
-            status, dir = pcg._implimentation(g, H, constraints, delta)
+            qp_eval = QuadEvaluator(g=g, H=H)
+            status, dir = pcg._implimentation(qp_eval, constraints, delta)
             assert status.flag == pcg.Flag.RESIDUAL_CONVERGENCE
             assert status.iter < dim
             assert dir is None
             g = H @ status.x + g
-            assert numpy.abs(g).max() < 10*math.sqrt(EPS)
+            assert numpy.abs(g).max() < 10 * math.sqrt(EPS)
 
     def test_nonconvex(self) -> None:
         numpy.random.seed(0)
@@ -65,7 +67,8 @@ class Test_pcg:
             H = (H.T + H) / 2  # type: ignore
 
             g = numpy.random.randn(dim)
-            status, dir = pcg._implimentation(g, H, constraints, delta)
+            qp_eval = QuadEvaluator(g=g, H=H)
+            status, dir = pcg._implimentation(qp_eval, constraints, delta)
             if status.flag == pcg.Flag.RESIDUAL_CONVERGENCE:
                 assert dir is None
                 g = H @ status.x + g
