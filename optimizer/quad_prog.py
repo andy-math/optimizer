@@ -127,6 +127,7 @@ def quad_prog(
     angle = 0 if x_interp.shape[1] <= 2 else index / (x_interp.shape[1] - 1)
     if violate:
         flag = Flag.CONSTRAINT
+    """
     x_g, _, _ = clip_solution(
         safe_normalize(-g).reshape((-1, 1)), g, H, constraints, delta
     )
@@ -135,4 +136,5 @@ def quad_prog(
     )
     assert qpval(x_clip) <= qpval(x_g) + 1e-6
     assert qpval(x_clip) <= qpval(x_d) + 1e-6
+    """
     return Status(x_clip, angle, flag, delta, qpval)
