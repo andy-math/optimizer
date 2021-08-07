@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 
+import math
 from typing import Callable, Final, NamedTuple, Optional, Tuple, Union
 
 import numpy
@@ -149,6 +150,7 @@ class _trust_region_impl:
         assert linneq.check(x, self.state.constraints)
 
         sol0 = Solution(0, x, (numpy.inf, 0.0), self.state)
+        assert sol0.fval != math.inf, "优化器迭代的起点函数值不能为inf"
 
         self.iter = 0
         self.delta = self.state.opts.init_delta
