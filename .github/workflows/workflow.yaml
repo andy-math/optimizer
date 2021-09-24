@@ -5,7 +5,7 @@ on: [push]
 jobs:
   build:
 
-    runs-on: macOS-10.14
+    runs-on: windows-latest
 
     steps:
     - uses: actions/checkout@v2
@@ -17,7 +17,7 @@ jobs:
     - name: Cache pip
       uses: actions/cache@v2
       with:
-        path: ~/Library/Caches/pip
+        path: ~\AppData\Local\pip\Cache
         key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-
@@ -29,10 +29,10 @@ jobs:
     - name: Test with pytest
       run: |
         git clone https://github.com/Andy-math/overloads.git
-        mv overloads overloads_git
-        mv overloads_git/overloads overloads
-        rm -rf overloads_git
-        export PYTHONPATH=.
+        move overloads overloads_git
+        move overloads_git\overloads overloads
+        del /s /q overloads_git
+        set PYTHONPATH=.
         coverage run -m pytest --junitxml=JUnit.xml
         coverage combine
         coverage xml
