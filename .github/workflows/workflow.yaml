@@ -36,6 +36,7 @@ jobs:
         coverage run -m pytest --junitxml=JUnit.xml
         coverage combine
         coverage xml
+      shell: cmd
     - uses: codecov/codecov-action@v2
       with:
         fail_ci_if_error: true # optional (default = false)
