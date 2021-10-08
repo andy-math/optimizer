@@ -2,6 +2,7 @@ import math
 from typing import Tuple
 
 import numpy
+
 from overloads.typedefs import ndarray
 
 
@@ -21,9 +22,9 @@ def constr_preproc(
 
     # 拼合A和b
     b.shape = (b.shape[0], 1)  # 这里inplace reshape是因为上文的除法已经产生了新的数组对象
-    Ab: ndarray = numpy.concatenate((A, b), axis=1)  # type: ignore
+    Ab: ndarray = numpy.concatenate((A, b), axis=1)
 
     # 行去重
-    Ab: ndarray = numpy.unique(Ab, axis=0)  # type: ignore
+    Ab = numpy.unique(Ab, axis=0)
 
     return (Ab[:, :-1], Ab[:, -1], lb, ub)

@@ -64,7 +64,7 @@ def _implimentation(qpval: QuadEvaluator, delta: float) -> Tuple[ndarray, Flag]:
 
     e: ndarray
     v: ndarray
-    e, v = numpy.linalg.eigh(H)  # type: ignore
+    e, v = numpy.linalg.eigh(H)
     min_lambda = float(e.min())
     vg: ndarray = -g @ v
 

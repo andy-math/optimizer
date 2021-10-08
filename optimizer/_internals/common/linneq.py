@@ -123,8 +123,8 @@ def margin(
         h_ub = h.copy()
         h_lb[A >= 0] = -numpy.inf
         h_ub[A <= 0] = numpy.inf
-        h_lb = h_lb.max(axis=0)
-        h_ub = h_ub.min(axis=0)
+        h_lb = h_lb.max(axis=0)  # type: ignore
+        h_ub = h_ub.min(axis=0)  # type: ignore
     """
     [lb/ub]补丁
     theta+h == [lb/ub]

@@ -16,16 +16,14 @@ class Test_pcg:
         delta = 9999
         for _ in range(1000):
             H = numpy.random.randn(dim, dim)
-            H = (H.T + H) / 2  # type: ignore
+            H = (H.T + H) / 2
             V: ndarray
             E: ndarray
-            E, V = numpy.linalg.eigh(H)  # type: ignore
-            assert numpy.abs(
-                V @ numpy.diag(E) @ V.T - H  # type: ignore
-            ).max() < math.sqrt(EPS)
+            E, V = numpy.linalg.eigh(H)
+            assert numpy.abs(V @ numpy.diag(E) @ V.T - H).max() < math.sqrt(EPS)
             H = (V * numpy.abs(E)) @ V.T
 
-            H = (H.T + H) / 2  # type: ignore
+            H = (H.T + H) / 2
             g = numpy.random.randn(dim)
             qp_eval = QuadEvaluator(g=g, H=H)
             x, _ = quad_prog._implimentation(qp_eval, delta)
@@ -38,21 +36,19 @@ class Test_pcg:
         delta = 9999
         for _ in range(1000):
             H = numpy.random.randn(dim, dim)
-            H = (H.T + H) / 2  # type: ignore
+            H = (H.T + H) / 2
             V: ndarray
             E: ndarray
-            E, V = numpy.linalg.eigh(H)  # type: ignore
-            assert numpy.abs(
-                V @ numpy.diag(E) @ V.T - H  # type: ignore
-            ).max() < math.sqrt(EPS)
+            E, V = numpy.linalg.eigh(H)
+            assert numpy.abs(V @ numpy.diag(E) @ V.T - H).max() < math.sqrt(EPS)
             H = (V * numpy.random.randn(dim)) @ V.T
 
-            H = (H.T + H) / 2  # type: ignore
+            H = (H.T + H) / 2
 
             g = numpy.random.randn(dim)
             qp_eval = QuadEvaluator(g=g, H=H)
             x, _ = quad_prog._implimentation(qp_eval, delta)
-            x2: ndarray = numpy.linalg.lstsq(H, -g, rcond=None)[0]  # type: ignore
+            x2: ndarray = numpy.linalg.lstsq(H, -g, rcond=None)[0]
             assert 0.5 * (x @ H @ x) + g @ x <= 0.5 * (x2 @ H @ x2) + g @ x2
 
 

@@ -79,19 +79,19 @@ def clip_solution(
     # delta
     a = numpy.sign(a) * numpy.minimum(numpy.abs(a), delta)
     # a * Ax <= b
-    lhs: ndarray = numpy.concatenate(  # type: ignore
+    lhs: ndarray = numpy.concatenate(
         # -x <= -lb; x <= ub; Ax <= b
         (-x, x, constraints[0] @ x),
         axis=0,
     )
-    rhs: ndarray = numpy.concatenate(  # type: ignore
+    rhs: ndarray = numpy.concatenate(
         # -x <= -lb; x <= ub; Ax <= b
         (-constraints[2], constraints[3], constraints[1])
     )
     bound: ndarray = numpy.abs(rhs.reshape(-1, 1) / lhs)
     bound[a * lhs <= 0] = numpy.inf
 
-    bound = 0.5 * bound.min(axis=0)
+    bound = 0.5 * bound.min(axis=0)  # type: ignore
     violate = numpy.abs(a) > bound
     a = numpy.sign(a) * numpy.minimum(numpy.abs(a), bound)
 

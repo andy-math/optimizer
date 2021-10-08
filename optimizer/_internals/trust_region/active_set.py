@@ -65,14 +65,14 @@ def active_set(
     e: ndarray
     v: ndarray
     if not len(fixing):
-        return numpy.eye(g.shape[0])
+        return numpy.eye(g.shape[0])  # type: ignore
     _eps = float(numpy.finfo(numpy.float64).eps)
-    fixA: ndarray = numpy.concatenate(fixing, axis=0)  # type: ignore
-    e, v = numpy.linalg.eigh(fixA.T @ fixA)  # type: ignore
+    fixA: ndarray = numpy.concatenate(fixing, axis=0)
+    e, v = numpy.linalg.eigh(fixA.T @ fixA)
 
     zero_eigenvalues = numpy.abs(e) <= math.sqrt(_eps)
     zeros = numpy.sum(zero_eigenvalues)
     if not zeros:  # 未找到有效的基，只能返回全0
         return numpy.zeros((g.shape[0], g.shape[0]))
     v = v[:, zero_eigenvalues]
-    return v @ v.T
+    return v @ v.T  # type: ignore
