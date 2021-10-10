@@ -5,10 +5,13 @@ import math
 from typing import Final, Tuple, cast
 
 from optimizer._internals.common.findiff import findiff
-from optimizer._internals.common.gradient import Gradient
-from optimizer._internals.common.hessian import Hessian
-from optimizer._internals.trust_region.frozenstate import FrozenState
-from optimizer._internals.trust_region.grad_maker import GradientCheck, make_gradient
+from optimizer._internals.structures.frozenstate import FrozenState
+from optimizer._internals.structures.gradient import (
+    Gradient,
+    GradientCheck,
+    make_gradient,
+)
+from optimizer._internals.structures.hessian import Hessian
 from overloads.typedefs import ndarray
 
 

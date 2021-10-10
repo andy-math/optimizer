@@ -1,11 +1,16 @@
 from typing import Callable, NamedTuple, Optional, Tuple
 
-from optimizer._internals.common.gradient import Gradient
 from optimizer._internals.common.norm import norm_inf
 from optimizer._internals.trust_region.active_set import active_set
 from optimizer._internals.trust_region.grad_check import gradient_check
 from optimizer._internals.trust_region.options import Trust_Region_Options
 from overloads.typedefs import ndarray
+
+
+class Gradient(NamedTuple):
+    value: ndarray
+    infnorm: float
+    VVT: ndarray
 
 
 class GradientCheck(NamedTuple):
