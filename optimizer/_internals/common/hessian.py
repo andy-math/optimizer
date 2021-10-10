@@ -15,8 +15,8 @@ class Hessian:
     def __init__(self, value: ndarray, *, max_times: int) -> None:
         _err = math.sqrt(float(numpy.finfo(numpy.float64).eps))
 
-        value = (value.T + value) / 2.0  
-        e: ndarray = numpy.linalg.eigh(value)[0]  
+        value = (value.T + value) / 2.0
+        e: ndarray = numpy.linalg.eigh(value)[0]
         assert e.dtype.type == numpy.float64
         min_e = float(e.min())
 
