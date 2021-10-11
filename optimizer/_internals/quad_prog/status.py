@@ -1,26 +1,36 @@
-from typing import Final
+import enum
+from typing import NamedTuple
 
 from optimizer._internals.common.norm import norm_l2
-from optimizer._internals.quad_prog.flag import Flag
 from optimizer._internals.quad_prog.quad_eval import QuadEvaluator
 from overloads.shortcuts import assertNoInfNaN
 from overloads.typedefs import ndarray
 
 
-class Status:
-    x: Final[ndarray]
-    fval: Final[float]
-    angle: Final[float]
-    flag: Final[Flag]
-    size: Final[float]
+@enum.unique
+class Flag(enum.Enum):
+    FATAL = enum.auto()
+    INTERIOR = enum.auto()
+    BOUNDARY = enum.auto()
+    CONSTRAINT = enum.auto()
 
-    def __init__(
-        self, x: ndarray, angle: float, flag: Flag, delta: float, qpval: QuadEvaluator
-    ) -> None:
-        assertNoInfNaN(x)
-        self.x = x
-        self.fval = qpval(x)
-        self.angle = angle
-        self.flag = flag
-        self.size = norm_l2(x)
-        assert self.size / delta < 1.0 + 1e-6
+
+class Status(NamedTuple):
+    x: ndarray
+    fval: float
+    angle: float
+    flag: Flag
+    size: float
+
+
+def make_status(
+    x: ndarray,
+    angle: float,
+    flag: Flag,
+    delta: float,
+    qpval: QuadEvaluator,
+) -> Status:
+    assertNoInfNaN(x)
+    size = norm_l2(x)
+    assert size / delta < 1.0 + 1e-6
+    return Status(x=x, fval=qpval(x), angle=angle, flag=flag, size=size)

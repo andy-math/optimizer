@@ -10,7 +10,7 @@ import scipy.optimize  # type: ignore
 from optimizer._internals.common import typing
 from optimizer._internals.common.linneq import constraint_check
 from optimizer._internals.common.norm import norm_l2, safe_normalize
-from optimizer._internals.quad_prog import flag, status
+from optimizer._internals.quad_prog import status
 from optimizer._internals.quad_prog.circular_interp import circular_interp
 from optimizer._internals.quad_prog.clip_solution import clip_solution
 from optimizer._internals.quad_prog.quad_eval import QuadEvaluator
@@ -18,7 +18,7 @@ from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
 from overloads.typedefs import ndarray
 
-Flag = flag.Flag
+Flag = status.Flag
 Status = status.Status
 _eps = float(numpy.finfo(numpy.float64).eps)
 
@@ -125,4 +125,4 @@ def quad_prog(
     assert qpval(x_clip) <= qpval(x_g) + 1e-6
     assert qpval(x_clip) <= qpval(x_d) + 1e-6
     """
-    return Status(x_clip, angle, flag, delta, qpval)
+    return status.make_status(x_clip, angle, flag, delta, qpval)

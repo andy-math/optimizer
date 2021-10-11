@@ -1,4 +1,4 @@
-from typing import Callable, Tuple
+from typing import Callable, NewType, Tuple
 
 import numpy
 
@@ -8,6 +8,7 @@ from overloads.typedefs import ndarray
 objective_t = Callable[[ndarray], float]
 gradient_t = Callable[[ndarray], ndarray]
 constraints_t = Tuple[ndarray, ndarray, ndarray, ndarray]
+proj_t = NewType("proj_t", ndarray)
 
 
 def DynT_Constraints(N: dyn_typing.DepSize) -> dyn_typing.DepType:

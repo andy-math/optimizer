@@ -3,6 +3,7 @@ from typing import List, Tuple
 
 import numpy
 
+from optimizer._internals.common import typing
 from optimizer._internals.common.linneq import margin
 from overloads.typedefs import ndarray
 
@@ -24,7 +25,7 @@ def active_set(
     x: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     border_abstol: float,
-) -> ndarray:
+) -> typing.proj_t:
     fixing: List[ndarray] = []
     """
     第一段：向fixing中添加A中的行
@@ -73,6 +74,6 @@ def active_set(
     zero_eigenvalues = numpy.abs(e) <= math.sqrt(_eps)
     zeros = numpy.sum(zero_eigenvalues)
     if not zeros:  # 未找到有效的基，只能返回全0
-        return numpy.zeros((g.shape[0], g.shape[0]))
+        return typing.proj_t(numpy.zeros((g.shape[0], g.shape[0])))
     v = v[:, zero_eigenvalues]
-    return v @ v.T  # type: ignore
+    return typing.proj_t(v @ v.T)

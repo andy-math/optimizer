@@ -1,8 +1,11 @@
 import math
-from typing import Final
+from typing import Final, Tuple
 
 import numpy
 
+from optimizer._internals.common.findiff import findiff
+from optimizer._internals.structures.frozenstate import FrozenState
+from optimizer._internals.trust_region.solution import Solution
 from overloads.typedefs import ndarray
 
 
@@ -23,3 +26,22 @@ class Hessian:
         self.value = value
         self.ill = min_e < _err
         self.max_times = max_times
+
+
+def make_hessian(sol: Solution, state: FrozenState) -> Tuple[Solution, Hessian]:
+    sol = Solution(
+        fval=sol.fval,
+        x=sol.x,
+        grad=sol.grad,
+        proj=sol.proj,
+        shifted_constr=sol.shifted_constr,
+        hess_up_to_date=True,
+    )
+    H = findiff(state.gradient, sol.x, state.constraints)
+    H = (H.T + H) / 2.0
+    H = sol.proj @ H @ sol.proj
+    if state.opts.shaking == "x.shape[0]":
+        max_times = sol.x.shape[0]
+    else:
+        max_times = state.opts.shaking
+    return sol, Hessian(H, max_times=max_times)
