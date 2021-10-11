@@ -10,11 +10,11 @@ from optimizer import quad_prog
 from optimizer._internals.common import linneq, typing
 from optimizer._internals.quad_prog.quad_eval import QuadEvaluator
 from optimizer._internals.structures.frozenstate import FrozenState
-from optimizer._internals.structures.gradient import Gradient
+from optimizer._internals.structures.gradient import Gradient, GradientCheck
 from optimizer._internals.structures.hessian import Hessian, make_hessian
 from optimizer._internals.trust_region import format, options
-from optimizer._internals.trust_region.constr_preproc import constr_preproc
 from optimizer._internals.trust_region.solution import Solution, make_solution
+from optimizer._internals.trust_region.std_constraints import standardize_constraints
 from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN
 from overloads.typedefs import ndarray
@@ -111,10 +111,13 @@ def _main_loop(
 
     # 更新步长、试探点、试探函数值
     new_sol = make_solution(
-        mut_state.iter + 1,
         old_sol.x + pcg_status.x,
-        (old_sol.grad.infnorm, sol0.grad.infnorm),
         state,
+        GradientCheck(
+            mut_state.iter + 1,
+            old_sol.grad.infnorm,
+            sol0.grad.infnorm,
+        ),
     )
 
     hessian_force_shake: bool
@@ -152,7 +155,7 @@ def _main_loop(
 def _run(state: FrozenState, x: ndarray) -> Trust_Region_Result:
     assert linneq.check(x, state.constraints)
 
-    sol0 = make_solution(0, x, (numpy.inf, 0.0), state)
+    sol0 = make_solution(x, state, GradientCheck(0, numpy.inf, 0.0))
     assert sol0.fval != math.inf, "优化器迭代的起点函数值不能为inf"
 
     mut_state: _MutState = _MutState(
@@ -261,7 +264,7 @@ def trust_region(
         objective=objective,
         objective_np=lambda x: numpy.array([objective(x)]),
         gradient=gradient,
-        constraints=constr_preproc(constraints),
+        constraints=standardize_constraints(constraints),
         opts=opts,
     )
     return _run(state, x)

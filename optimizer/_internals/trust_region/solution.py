@@ -2,7 +2,7 @@
 
 
 import math
-from typing import NamedTuple, Tuple
+from typing import NamedTuple
 
 from optimizer._internals.common import typing
 from optimizer._internals.structures.frozenstate import FrozenState
@@ -23,22 +23,11 @@ class Solution(NamedTuple):
     hess_up_to_date: bool = False
 
 
-def make_solution(
-    iter: int,
-    x: ndarray,
-    g_infnorm: Tuple[float, float],
-    state: FrozenState,
-) -> Solution:
+def make_solution(x: ndarray, state: FrozenState, check: GradientCheck) -> Solution:
     fval = state.objective(x)
     # +inf被允许是因为可能存在极大的penalty
     assert not math.isnan(fval) and fval != -math.inf
-    grad, proj = make_gradient(
-        x,
-        state.gradient,
-        state.constraints,
-        state.opts,
-        check=GradientCheck(state.objective_np, iter, *g_infnorm),
-    )
+    grad, proj = make_gradient(x, state, check)
     A, b, lb, ub = state.constraints
     shifted_constr = (A, b - A @ x, lb - x, ub - x)
     return Solution(

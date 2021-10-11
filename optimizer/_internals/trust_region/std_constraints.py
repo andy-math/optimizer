@@ -1,14 +1,12 @@
 import math
-from typing import Tuple
 
 import numpy
 
+from optimizer._internals.common import typing
 from overloads.typedefs import ndarray
 
 
-def constr_preproc(
-    constraints: Tuple[ndarray, ndarray, ndarray, ndarray]
-) -> Tuple[ndarray, ndarray, ndarray, ndarray]:
+def standardize_constraints(constraints: typing.constraints_t) -> typing.constraints_t:
     _eps = float(numpy.finfo(numpy.float64).eps)
     A, b, lb, ub = constraints
     # 行norm2归一化

@@ -20,7 +20,7 @@ result = v @ v.T @ g
 """
 
 
-def active_set(
+def projection(
     g: ndarray,
     x: ndarray,
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
@@ -34,18 +34,19 @@ def active_set(
     _ub = numpy.full(x.shape, numpy.inf)
     A, b, _, _ = constraints
     # A@g < 0，当沿着相反于g的方向，也就是 -g 方向走时，A@(-g)上升，到达上界b
-    Ag = A @ g < 0
-    A, b = A[Ag, :], b[Ag]
-    g_gt0: ndarray = g > 0
-    g_lt0: ndarray = g < 0
-    g_neq0 = numpy.logical_or(g_gt0, g_lt0)
+    neq_violate = A @ (-g) > 0
+    A, b = A[neq_violate, :], b[neq_violate]
+    grad_pos: ndarray = g > 0
+    grad_neg: ndarray = g < 0
+    grad_nonzero = numpy.logical_or(grad_pos, grad_neg)
     border = numpy.zeros(g.shape)
     for i in range(A.shape[0]):
-        lb, ub = margin(x, (A[[i], :], b[[i]], _lb, _ub))
-        border[g_gt0] = -lb[g_gt0]  # 正的梯度导致数值减小
-        border[g_lt0] = ub[g_lt0]  # 负的梯度导致数值变大
-        if border[g_neq0].min() <= border_abstol:
-            fixing.append(A[[i], :])
+        _A, _b = A[[i], :], b[[i]]
+        lb, ub = margin(x, (_A, _b, _lb, _ub))
+        border[grad_pos] = -lb[grad_pos]  # 正的梯度导致数值减小
+        border[grad_neg] = ub[grad_neg]  # 负的梯度导致数值变大
+        if border[grad_nonzero].min() <= border_abstol:
+            fixing.append(_A)
     """
     第二段：向fixing中添加lb或ub的实现
     """
