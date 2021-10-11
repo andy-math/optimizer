@@ -38,8 +38,6 @@ def make_hessian(sol: Solution, state: FrozenState) -> Tuple[Solution, Hessian]:
         hess_up_to_date=True,
     )
     H = findiff(state.gradient, sol.x, state.constraints)
-    H = (H.T + H) / 2.0
-    H = sol.proj @ H @ sol.proj
     if state.opts.shaking == "x.shape[0]":
         max_times = sol.x.shape[0]
     else:

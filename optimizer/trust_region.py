@@ -104,7 +104,9 @@ def _main_loop(
 
     # PCG
     qp_eval = QuadEvaluator(g=old_sol.grad.value, H=hessian.value)
-    pcg_status = quad_prog.quad_prog(qp_eval, old_sol.shifted_constr, mut_state.delta)
+    pcg_status = quad_prog.quad_prog(
+        qp_eval, old_sol.shifted_constr, mut_state.delta, old_sol.proj
+    )
     hessian.times += 1
 
     # 更新步长、试探点、试探函数值

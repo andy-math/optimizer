@@ -1,4 +1,4 @@
-from typing import Callable, NamedTuple, Optional, Tuple
+from typing import Callable, NamedTuple, Tuple
 
 from optimizer._internals.common import typing
 from optimizer._internals.common.norm import norm_inf
@@ -26,11 +26,9 @@ def make_gradient(
     constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
     opts: Trust_Region_Options,
     *,
-    check: Optional[GradientCheck],
+    check: GradientCheck,
 ) -> Tuple[Gradient, typing.proj_t]:
     analytic = g(x)
-    if check is not None:
-        gradient_check(analytic, x, constraints, opts, *check)
-    VVT = active_set(analytic, x, constraints, opts.border_abstol)
-    gradient: ndarray = VVT @ analytic
-    return Gradient(gradient, norm_inf(gradient)), VVT
+    gradient_check(analytic, x, constraints, opts, *check)
+    proj = active_set(analytic, x, constraints, opts.border_abstol)
+    return Gradient(analytic, norm_inf(proj @ analytic)), proj

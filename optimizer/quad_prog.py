@@ -2,7 +2,7 @@
 
 
 import math
-from typing import Tuple
+from typing import Callable, Tuple
 
 import numpy
 import scipy.optimize  # type: ignore
@@ -88,41 +88,38 @@ def _pcg_output_check(output: Status) -> None:
 
 N = dyn_typing.SizeVar()
 
+assertNoInfNaN_proj: Callable[[typing.proj_t], None] = assertNoInfNaN
 
-@dyn_typing.dyn_check_3(
+
+@dyn_typing.dyn_check_4(
     input=(
         dyn_typing.Class(QuadEvaluator),
         typing.DynT_Constraints(N),
         dyn_typing.Float(),
+        dyn_typing.NDArray(numpy.float64, (N, N)),
     ),
     output=dyn_typing.Class(Status),
 )
-@bind_checker.bind_checker_3(
-    input=bind_checker.make_checker_3(
-        no_check_QPeval, constraint_check, assertNoInfNaN_float
+@bind_checker.bind_checker_4(
+    input=bind_checker.make_checker_4(
+        no_check_QPeval,
+        constraint_check,
+        assertNoInfNaN_float,
+        assertNoInfNaN_proj,
     ),
     output=_pcg_output_check,
 )
 def quad_prog(
     qpval: QuadEvaluator,
-    constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
+    constraints: typing.constraints_t,
     delta: float,
+    proj: typing.proj_t,
 ) -> Status:
     g, H = qpval.g, qpval.H
     d, flag = _implimentation(qpval, delta)
-    x_interp = circular_interp(-g, d)
+    x_interp = circular_interp(proj @ -g, proj @ d)
     x_clip, violate, index = clip_solution(x_interp, g, H, constraints, delta)
     angle = 0 if x_interp.shape[1] <= 2 else index / (x_interp.shape[1] - 1)
     if violate:
         flag = Flag.CONSTRAINT
-    """
-    x_g, _, _ = clip_solution(
-        safe_normalize(-g).reshape((-1, 1)), g, H, constraints, delta
-    )
-    x_d, _, _ = clip_solution(
-        safe_normalize(d).reshape((-1, 1)), g, H, constraints, delta
-    )
-    assert qpval(x_clip) <= qpval(x_g) + 1e-6
-    assert qpval(x_clip) <= qpval(x_d) + 1e-6
-    """
     return status.make_status(x_clip, angle, flag, delta, qpval)
