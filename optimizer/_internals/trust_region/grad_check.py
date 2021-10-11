@@ -1,5 +1,6 @@
-from typing import Callable, Optional, Tuple
+from typing import Callable, Optional
 
+from optimizer._internals.common import typing
 from optimizer._internals.common.findiff import findiff
 from optimizer._internals.trust_region.options import Trust_Region_Options
 from overloads import difference
@@ -28,7 +29,7 @@ class Grad_Check_Failed(BaseException):
 def gradient_check(
     analytic: ndarray,
     x: ndarray,
-    constraints: Tuple[ndarray, ndarray, ndarray, ndarray],
+    constraints: typing.constraints_t,
     opts: Trust_Region_Options,
     f: Callable[[ndarray], ndarray],
     iter: int,

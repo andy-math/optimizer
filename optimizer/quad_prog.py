@@ -7,6 +7,7 @@ from typing import Tuple
 import numpy
 import scipy.optimize  # type: ignore
 
+from optimizer._internals.common import typing
 from optimizer._internals.common.linneq import constraint_check
 from optimizer._internals.common.norm import norm_l2, safe_normalize
 from optimizer._internals.quad_prog import flag, status
@@ -20,29 +21,6 @@ from overloads.typedefs import ndarray
 Flag = flag.Flag
 Status = status.Status
 _eps = float(numpy.finfo(numpy.float64).eps)
-
-
-N = dyn_typing.SizeVar()
-nConstraints = dyn_typing.SizeVar()
-
-"""
-动态类型签名
-"""
-dyn_signature = dyn_typing.dyn_check_3(
-    input=(
-        dyn_typing.Class(QuadEvaluator),
-        dyn_typing.Tuple(
-            (
-                dyn_typing.NDArray(numpy.float64, (nConstraints, N)),
-                dyn_typing.NDArray(numpy.float64, (nConstraints,)),
-                dyn_typing.NDArray(numpy.float64, (N,)),
-                dyn_typing.NDArray(numpy.float64, (N,)),
-            )
-        ),
-        dyn_typing.Float(),
-    ),
-    output=dyn_typing.Class(Status),
-)
 
 
 def no_check_QPeval(_: QuadEvaluator) -> None:
@@ -108,7 +86,17 @@ def _pcg_output_check(output: Status) -> None:
     pass
 
 
-@dyn_signature
+N = dyn_typing.SizeVar()
+
+
+@dyn_typing.dyn_check_3(
+    input=(
+        dyn_typing.Class(QuadEvaluator),
+        typing.DynT_Constraints(N),
+        dyn_typing.Float(),
+    ),
+    output=dyn_typing.Class(Status),
+)
 @bind_checker.bind_checker_3(
     input=bind_checker.make_checker_3(
         no_check_QPeval, constraint_check, assertNoInfNaN_float
