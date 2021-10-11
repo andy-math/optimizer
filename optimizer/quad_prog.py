@@ -119,7 +119,7 @@ def quad_prog(
     d, flag = _implimentation(qpval, delta)
     x_interp = circular_interp(proj @ -g, proj @ d)
     x_clip, violate, index = clip_solution(x_interp, g, H, constraints, delta)
-    angle = 0 if x_interp.shape[1] <= 2 else index / (x_interp.shape[1] - 1)
+    angle = index / (x_interp.shape[1] - 1)
     if violate:
         flag = Flag.CONSTRAINT
     return status.make_status(x_clip, angle, flag, delta, qpval)

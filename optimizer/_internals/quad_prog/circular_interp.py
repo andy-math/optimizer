@@ -47,7 +47,9 @@ def circular_interp(direct1: ndarray, direct2: ndarray) -> ndarray:
     else:
         rad = numpy.linspace(0, numpy.arccos(cos), num=num)
         w1, w2 = numpy.cos(rad), numpy.sin(rad)
-        direct1, direct2 = direct1.reshape(-1, 1), direct2.reshape(-1, 1)
-        orthogonal = (direct2 - direct1 * w1[-1]) / w2[-1]  # 正交化
-        x: ndarray = w1 * direct1 + w2 * orthogonal
-        return numpy.concatenate((direct1, x, direct2), axis=1)  # type: ignore
+        dir1, dir2 = direct1.reshape(-1, 1), direct2.reshape(-1, 1)
+        orthogonal = (dir2 - dir1 * w1[-1]) / w2[-1]  # 正交化
+        x: ndarray = w1 * dir1 + w2 * orthogonal
+        x[:, 0] = direct1
+        x[:, -1] = direct2
+        return x
