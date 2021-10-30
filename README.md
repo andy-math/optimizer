@@ -18,38 +18,45 @@ Python数值优化求解器
 > ![](https://latex.codecogs.com/gif.latex?\\hat{x}=\\left\(1,1\\right\))
 
 ```python
-from optimizer import trust_region
+>>> import numpy
+>>> from numpy import ndarray
+>>> from optimizer import trust_region
+
+>>> def func(_x: ndarray) -> float:
+...     x: float = float(_x[0])
+...     y: float = float(_x[1])
+...     return 100 * (y - x * x) ** 2 + (1 - x) ** 2
 
 
-def func(_x: ndarray) -> float:
-    x: float = float(_x[0])
-    y: float = float(_x[1])
-    return 100 * (y - x * x) ** 2 + (1 - x) ** 2
+>>> def grad(_x: ndarray) -> ndarray:
+...     x: float = float(_x[0])
+...     y: float = float(_x[1])
+...     return numpy.array([-400 * (y - x * x) * x - 2 * (1 - x), 200 * (y - x ** 2)])
 
 
-def grad(_x: ndarray) -> ndarray:
-    x: float = float(_x[0])
-    y: float = float(_x[1])
-    return numpy.array([-400 * (y - x * x) * x - 2 * (1 - x), 200 * (y - x ** 2)])
+>>> n = 2
+>>> constraints = (
+...     numpy.zeros((0, n)), # A
+...     numpy.zeros((0,)), # b
+...     numpy.full((n,), -numpy.inf), # lb
+...     numpy.full((n,), numpy.inf), # ub
+... )
 
+>>> opts = trust_region.Trust_Region_Options(max_iter=500)
+>>> result = trust_region.trust_region(
+...     func,
+...     grad,
+...     numpy.array([-1.9, 2]),
+...     constraints,
+...     opts,
+... )
+<BLANKLINE>
+...Iter...
+>>> print(result.success, result.x)
+True [1. 1.]
 
-n = 2
-constr_A = numpy.zeros((0, n))
-constr_b = numpy.zeros((0,))
-constr_lb = numpy.full((n,), -numpy.inf)
-constr_ub = numpy.full((n,), numpy.inf) 
-
-opts = trust_region.Trust_Region_Options(max_iter=500)
-result = trust_region.trust_region(
-    func,
-    grad,
-    numpy.array([-1.9, 2]),
-    (constr_A, constr_b, constr_lb, constr_ub),
-    opts,
-)
-print(result.success, result.x)
 ```
-> \>\>\> True [0.99811542 0.99623087]
+
 
 ### 带约束非凸函数
 `tests/test_trust_neg_curv.py`
@@ -63,33 +70,40 @@ print(result.success, result.x)
 > ![](https://latex.codecogs.com/gif.latex?\\hat{x}=1)
 
 ```python
-from optimizer import trust_region
+>>> import math
+>>> import numpy
+>>> from numpy import ndarray
+>>> from optimizer import trust_region
+
+>>> def func(_x: ndarray) -> float:
+...     x: float = float(_x[0])
+...     return 1 / x + math.log(x)
 
 
-def func(_x: ndarray) -> float:
-    x: float = float(_x[0])
-    return 1 / x + math.log(x)
+>>> def grad(_x: ndarray) -> ndarray:
+...     x: float = float(_x[0])
+...     return numpy.array([1 / x - 1 / (x * x)])
 
 
-def grad(_x: ndarray) -> ndarray:
-    x: float = float(_x[0])
-    return numpy.array([1 / x - 1 / (x * x)])
+>>> n = 1
+>>> constraints = (
+...     numpy.zeros((0, n)), # A
+...     numpy.zeros((0,)), # b
+...     numpy.array([0.25]), # lb
+...     numpy.array([10.0]), # ub
+... )
 
+>>> opts = trust_region.Trust_Region_Options(max_iter=500)
+>>> result = trust_region.trust_region(
+...     func,
+...     grad,
+...     numpy.array([9.5]),
+...     constraints,
+...     opts,
+... )
+<BLANKLINE>
+...Iter...
+>>> print(result.success, result.x)
+True [0.99999985]
 
-n = 1
-constr_A = numpy.zeros((0, n))
-constr_b = numpy.zeros((0,))
-constr_lb = numpy.array([0.25])
-constr_ub = numpy.array([10.0])
-
-opts = trust_region.Trust_Region_Options(max_iter=500)
-result = trust_region.trust_region(
-    func,
-    grad,
-    numpy.array([9.5]),
-    (constr_A, constr_b, constr_lb, constr_ub),
-    opts,
-)
-print(result.success, result.x)
 ```
-> \>\>\> True [1.]
