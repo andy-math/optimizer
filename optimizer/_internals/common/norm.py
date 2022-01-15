@@ -2,7 +2,6 @@ import math
 from typing import cast
 
 import numpy
-
 from overloads.typedefs import ndarray
 
 
@@ -22,4 +21,4 @@ def safe_normalize(x: ndarray) -> ndarray:
     l2norm = norm_l2(x)
     if l2norm == 0:
         return x
-    return x / l2norm  # type: ignore
+    return x / l2norm

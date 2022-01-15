@@ -2,7 +2,6 @@ import math
 from typing import List, Tuple
 
 import numpy
-
 from optimizer._internals.common import typing
 from optimizer._internals.common.linneq import margin
 from overloads.typedefs import ndarray
@@ -69,8 +68,8 @@ def projection(
     if not len(fixing):
         return numpy.eye(g.shape[0])  # type: ignore
     _eps = float(numpy.finfo(numpy.float64).eps)
-    fixA: ndarray = numpy.concatenate(fixing, axis=0)
-    e, v = numpy.linalg.eigh(fixA.T @ fixA)
+    fixA: ndarray = numpy.concatenate(fixing, axis=0)  # type: ignore
+    e, v = numpy.linalg.eigh(fixA.T @ fixA)  # type: ignore
 
     zero_eigenvalues = numpy.abs(e) <= math.sqrt(_eps)
     zeros = numpy.sum(zero_eigenvalues)

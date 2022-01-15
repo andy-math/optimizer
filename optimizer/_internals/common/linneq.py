@@ -4,7 +4,6 @@
 from typing import Optional, Tuple
 
 import numpy
-
 from overloads import bind_checker, dyn_typing
 from overloads.shortcuts import assertNoInfNaN, assertNoNaN
 from overloads.typedefs import ndarray
@@ -123,8 +122,8 @@ def margin(
         h_ub = h.copy()
         h_lb[A >= 0] = -numpy.inf
         h_ub[A <= 0] = numpy.inf
-        h_lb = h_lb.max(axis=0)  # type: ignore
-        h_ub = h_ub.min(axis=0)  # type: ignore
+        h_lb = h_lb.max(axis=0)
+        h_ub = h_ub.min(axis=0)
     """
     [lb/ub]补丁
     theta+h == [lb/ub]

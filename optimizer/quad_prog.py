@@ -6,6 +6,9 @@ from typing import Callable, Tuple
 
 import numpy
 import scipy.optimize  # type: ignore
+from overloads import bind_checker, dyn_typing
+from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
+from overloads.typedefs import ndarray
 
 from optimizer._internals.common import typing
 from optimizer._internals.common.linneq import constraint_check
@@ -14,9 +17,6 @@ from optimizer._internals.quad_prog import status
 from optimizer._internals.quad_prog.circular_interp import circular_interp
 from optimizer._internals.quad_prog.clip_solution import clip_solution
 from optimizer._internals.quad_prog.quad_eval import QuadEvaluator
-from overloads import bind_checker, dyn_typing
-from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
-from overloads.typedefs import ndarray
 
 Flag = status.Flag
 Status = status.Status
@@ -42,7 +42,7 @@ def _implimentation(qpval: QuadEvaluator, delta: float) -> Tuple[ndarray, Flag]:
 
     e: ndarray
     v: ndarray
-    e, v = numpy.linalg.eigh(H)
+    e, v = numpy.linalg.eigh(H)  # type: ignore
     min_lambda = float(e.min())
     vg: ndarray = -g @ v
 

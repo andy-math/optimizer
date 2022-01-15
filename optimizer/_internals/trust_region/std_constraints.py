@@ -1,7 +1,6 @@
 import math
 
 import numpy
-
 from optimizer._internals.common import typing
 from overloads.typedefs import ndarray
 
@@ -20,9 +19,9 @@ def standardize_constraints(constraints: typing.constraints_t) -> typing.constra
 
     # 拼合A和b
     b.shape = (b.shape[0], 1)  # 这里inplace reshape是因为上文的除法已经产生了新的数组对象
-    Ab: ndarray = numpy.concatenate((A, b), axis=1)
+    Ab: ndarray = numpy.concatenate((A, b), axis=1)  # type: ignore
 
     # 行去重
-    Ab = numpy.unique(Ab, axis=0)
+    Ab = numpy.unique(Ab, axis=0)  # type: ignore
 
     return (Ab[:, :-1], Ab[:, -1], lb, ub)

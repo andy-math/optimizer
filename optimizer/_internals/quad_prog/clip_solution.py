@@ -4,7 +4,6 @@
 from typing import Tuple
 
 import numpy
-
 from overloads import bind_checker
 from overloads.shortcuts import assertNoInfNaN, assertNoInfNaN_float
 from overloads.typedefs import ndarray
@@ -79,19 +78,19 @@ def clip_solution(
     # delta
     a = numpy.sign(a) * numpy.minimum(numpy.abs(a), delta)
     # a * Ax <= b
-    lhs: ndarray = numpy.concatenate(
+    lhs: ndarray = numpy.concatenate(  # type: ignore
         # -x <= -lb; x <= ub; Ax <= b
         (-x, x, constraints[0] @ x),
         axis=0,
     )
-    rhs: ndarray = numpy.concatenate(
+    rhs: ndarray = numpy.concatenate(  # type: ignore
         # -x <= -lb; x <= ub; Ax <= b
         (-constraints[2], constraints[3], constraints[1])
     )
     bound: ndarray = numpy.abs(rhs.reshape(-1, 1) / lhs)
     bound[a * lhs <= 0] = numpy.inf
 
-    bound = 0.5 * bound.min(axis=0)  # type: ignore
+    bound = 0.5 * bound.min(axis=0)
     violate = numpy.abs(a) > bound
     a = numpy.sign(a) * numpy.minimum(numpy.abs(a), bound)
 

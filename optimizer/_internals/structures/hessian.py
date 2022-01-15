@@ -2,7 +2,6 @@ import math
 from typing import Final, Tuple
 
 import numpy
-
 from optimizer._internals.common.findiff import findiff
 from optimizer._internals.structures.frozenstate import FrozenState
 from optimizer._internals.trust_region.solution import Solution
@@ -18,8 +17,8 @@ class Hessian:
     def __init__(self, value: ndarray, *, max_times: int) -> None:
         _err = math.sqrt(float(numpy.finfo(numpy.float64).eps))
 
-        value = (value.T + value) / 2.0
-        e: ndarray = numpy.linalg.eigh(value)[0]
+        value = (value.T + value) / 2.0  # type: ignore
+        e: ndarray = numpy.linalg.eigh(value)[0]  # type: ignore
         assert e.dtype.type == numpy.float64
         min_e = float(e.min())
 
