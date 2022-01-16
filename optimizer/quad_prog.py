@@ -2,7 +2,7 @@
 
 
 import math
-from typing import Callable, Tuple
+from typing import Callable, Tuple, cast
 
 import numpy
 import scipy.optimize  # type: ignore
@@ -70,14 +70,14 @@ def _implimentation(qpval: QuadEvaluator, delta: float) -> Tuple[ndarray, Flag]:
             dx *= 2
         return (a, a + dx)
 
-    lambda_ = scipy.optimize.brentq(
+    lambda_: float = scipy.optimize.brentq(  # type: ignore
         secular, *init_guess(), maxiter=2 ** 31 - 1, disp=False
     )
     e = e + lambda_
     assert not numpy.any(e < 0)
     if numpy.any(e == 0):
         flag = Flag.FATAL
-        e[e == 0] = _eps
+        e[e == 0] = _eps  # type: ignore
     s = v @ (vg / e)
     return delta * safe_normalize(s), flag
 
@@ -88,7 +88,7 @@ def _pcg_output_check(output: Status) -> None:
 
 N = dyn_typing.SizeVar()
 
-assertNoInfNaN_proj: Callable[[typing.proj_t], None] = assertNoInfNaN
+assertNoInfNaN_proj = cast(Callable[[typing.proj_t], None], assertNoInfNaN)
 
 
 @dyn_typing.dyn_check_4(

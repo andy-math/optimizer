@@ -28,7 +28,7 @@ def grad(x: ndarray) -> ndarray:
     return g  # type: ignore
 
 
-hessian_GT: ndarray = 2 * H
+hessian_GT: ndarray = 2.0 * H
 
 
 def compare_hess(h: ndarray, gt: ndarray) -> None:

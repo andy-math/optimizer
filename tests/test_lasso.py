@@ -29,7 +29,9 @@ class Sample:
         return X
 
     def soft_threshold(self, beta: ndarray, lambda_: ndarray) -> ndarray:
-        beta = numpy.sign(beta) * numpy.maximum(numpy.abs(beta) - lambda_, 0.0)
+        beta = numpy.sign(beta) * numpy.maximum(  # type: ignore
+            numpy.abs(beta) - lambda_, 0.0
+        )
         return beta
 
     def lasso_decomp(self) -> ndarray:

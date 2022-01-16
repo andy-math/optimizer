@@ -52,14 +52,14 @@ def gradient_check(
         assert len(findiff_.shape) == 2 and findiff_.shape[0] == 1
         findiff_.shape = (findiff_.shape[1],)
 
-    if need_rel_check:
-        relerr = difference.relative(analytic, findiff_)
-        if relerr > opts.check_rel:
-            raise Grad_Check_Failed(iter, relerr, analytic, findiff_)
-    if opts.check_abs is not None:
-        abserr = difference.absolute(analytic, findiff_)
-        if abserr > opts.check_abs:
-            raise Grad_Check_Failed(iter, abserr, analytic, findiff_)
+        if need_rel_check:
+            relerr = difference.relative(analytic, findiff_)
+            if relerr > opts.check_rel:
+                raise Grad_Check_Failed(iter, relerr, analytic, findiff_)
+        if opts.check_abs is not None:
+            abserr = difference.absolute(analytic, findiff_)
+            if abserr > opts.check_abs:
+                raise Grad_Check_Failed(iter, abserr, analytic, findiff_)
 
 
 class Gradient(NamedTuple):

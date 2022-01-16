@@ -35,8 +35,8 @@ def projection(
     # A@g < 0，当沿着相反于g的方向，也就是 -g 方向走时，A@(-g)上升，到达上界b
     neq_violate = A @ (-g) > 0
     A, b = A[neq_violate, :], b[neq_violate]
-    grad_pos: ndarray = g > 0
-    grad_neg: ndarray = g < 0
+    grad_pos: numpy.ndarray[Tuple[int, ...], numpy.dtype[numpy.bool_]] = g > 0
+    grad_neg: numpy.ndarray[Tuple[int, ...], numpy.dtype[numpy.bool_]] = g < 0
     grad_nonzero = numpy.logical_or(grad_pos, grad_neg)
     border = numpy.zeros(g.shape)
     for i in range(A.shape[0]):
